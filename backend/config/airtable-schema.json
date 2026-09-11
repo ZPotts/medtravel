@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "tables": [
+    { "name": "Clinics", "fields": ["Clinic Name", "Country", "City", "Website", "Languages", "Specialties", "Years in Business", "Review Score", "Price Range", "Status"] },
+    { "name": "Procedures", "fields": ["Procedure Name", "Category", "Description", "Cost Range", "Recovery Time"] },
+    { "name": "Reviews", "fields": ["Clinic", "Rating", "Review Text", "Procedure", "Source"] },
+    { "name": "Resources", "fields": ["Name", "Type", "City/Country", "Price Range", "Website"] },
+    { "name": "Users", "fields": ["Email", "Name", "Signup Date"] },
+    { "name": "Operations Log", "fields": ["Timestamp", "Operation Type", "Input", "Output", "Status"] }
+  ]
+}

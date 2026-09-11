@@ -1,0 +1,23 @@
+{
+  "clinic_quality_standards": {
+    "minimum_review_score": 3.5,
+    "preferred_review_score": 4.2,
+    "required_certifications": ["JCI", "ISO"],
+    "preferred_years_in_business": 5,
+    "languages_required": ["English"]
+  },
+  "clinic_scoring": {
+    "weights": {
+      "review_score": 0.40,
+      "price_fit": 0.25,
+      "doctor_credentials": 0.20,
+      "timeline_fit": 0.10,
+      "language_availability": 0.05
+    }
+  },
+  "user_budget_tiers": {
+    "budget_conscious": { "min": 0, "max": 2000 },
+    "mid_range": { "min": 2000, "max": 10000 },
+    "premium": { "min": 10000, "max": 50000 }
+  }
+}
