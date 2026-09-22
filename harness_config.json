@@ -1,0 +1,43 @@
+{
+  "project_name": "med-travel-directory",
+  "active_model_provider": "local_or_generic",
+  "providers": {
+    "anthropic": {
+      "env_key": "ANTHROPIC_API_KEY",
+      "default_model": "claude-3-5-sonnet-20241022"
+    },
+    "gemini": {
+      "env_key": "GEMINI_API_KEY",
+      "default_model": "gemini-1.5-turbo"
+    },
+    "openai": {
+      "env_key": "OPENAI_API_KEY",
+      "default_model": "gpt-4o"
+    },
+    "ollama": {
+      "base_url": "http://localhost:11434",
+      "default_model": "llama3"
+    }
+  },
+  "domains": {
+    "code": {
+      "description": "Handles code, and running local tests.",
+      "allowed_directories": ["./src", "./tests", "./backend"],
+      "tools": ["file_writer", "terminal_runner", "linter"]
+    },
+    "ops": {
+      "description": "Handles data ingestion, database queries, and clinic scraping pipelines.",
+      "allowed_directories": ["./data", "./scrapers", "./config"],
+      "tools": ["db_connector", "web_scraper", "log_analyzer"]
+    },
+    "management": {
+      "description": "Handles project management tasks, including task tracking and reporting. Management is in service to engineering and ops.",
+      "allowed_directories": ["./docs", "./reports"],
+      "tools": ["task_tracker", "report_generator"]
+    }
+  },
+  "workspace_limits": {
+    "allowed_directories": ["./src", "./tests", "./data"],
+    "max_iterations": 5
+  }
+}
