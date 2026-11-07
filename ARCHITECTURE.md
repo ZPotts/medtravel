@@ -4,34 +4,34 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                  Medical Travel Directory                    │
+│                  Medical Travel Directory                   │
 ├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  LAYER 1: DATA (Airtable)                                   │
-│  ├─ Clinics: clinic_name, country, city, reviews, pricing   │
-│  ├─ Procedures: procedure_name, description, cost range     │
-│  ├─ Reviews: rating, text, source (Google, TripAdvisor)     │
-│  ├─ Resources: hotels, airports, logistics nearby           │
-│  └─ Operations Log: audit trail of all AI decisions         │
-│                                                               │
+│                                                             │
+│  LAYER 1: DATA (JSON files now, MySQL later)                │
+│  ├─ clinics.json: name, country, city, reviews, pricing     │
+│  ├─ procedures.json: name, description, cost range          │
+│  ├─ reviews.json: rating, text, source (Google, TripAdvisor)│
+│  ├─ resources.json: hotels, airports, logistics nearby      │
+│  └─ operations-log.json: audit trail of all AI decisions    │
+│                                                             │
 │  LAYER 2: DECISION ENGINE (Claude API)                      │
 │  ├─ Research: "Find clinics in [destination] for [procedure]"
 │  ├─ Matching: "Rank these clinics for this user"            │
 │  ├─ Content: "Generate a profile for this clinic"           │
 │  └─ Logging: Every decision logged with reasoning           │
-│                                                               │
+│                                                             │
 │  LAYER 3: BUSINESS LOGIC (Node.js)                          │
-│  ├─ Services: claude.js (API wrapper)                       │
-│  ├─ Routes: /api/clinics, /api/match, /api/content         │
-│  ├─ Config: airtable-schema.json, business-rules.json       │
-│  └─ Scripts: research-clinics.js, seed-airtable.js         │
-│                                                               │
+│  ├─ Services: claude.js (API wrapper), storage.js (data)    │
+│  ├─ Routes: /api/clinics, /api/match, /api/content          │
+│  ├─ Config: data-schema.json, business-rules.json           │
+│  └─ Scripts: research-clinics.js, init-data.js              │
+│                                                             │
 │  LAYER 4: FRONTEND (React/Next.js)                          │
 │  ├─ Search UI: destination + procedure input                │
 │  ├─ Results: ranked clinics with explanations               │
 │  ├─ Detail pages: clinic profile + reviews + resources      │
 │  └─ Landing page: email capture for demand validation       │
-│                                                               │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -58,13 +58,13 @@
    ├─ Score: review_score (1-5) based on Google/TripAdvisor/RealSelf
    └─ Return: JSON array
 
-4. Save to Airtable
-   ├─ For each clinic: create record in "Clinics" table
+4. Save via storage.js
+   ├─ For each clinic: add record to data/clinics.json
    ├─ Fields: clinic_name, country, city, website, languages, specialties, review_score, price_range, etc.
    └─ Log operation: Input, Prompt, Output, Timestamp, Status
 
 5. Result
-   ├─ 50 clinic records in Airtable
+   ├─ 50 clinic records in data/clinics.json
    ├─ Operation logged for audit trail
    └─ Ready for matching + content generation
 ```
@@ -73,7 +73,8 @@
 - `backend/scripts/research-clinics.js` — CLI entry point
 - `backend/src/services/claude.js` — researchClinics() function
 - `backend/prompts/research.md` — Claude instructions
-- `backend/config/airtable-schema.json` — Clinics table definition
+- `backend/src/services/storage.js` — read/write layer for data files
+- `backend/config/data-schema.json` — Clinics record definition
 
 ---
 
@@ -89,7 +90,7 @@
 
 2. Backend Route (routes/api.js:matchEndpoint)
    ├─ Validate input
-   ├─ Query Airtable: Get clinics matching destination + procedure
+   ├─ Query storage: Get clinics matching destination + procedure
    └─ Call: matchUserToClinics(userPrefs, clinics)
 
 3. Claude Service (claude.js:matchUserToClinics)
@@ -132,9 +133,9 @@
 
 ```
 1. Script (scripts/generate-content.js)
-   ├─ Loop through all clinics in Airtable
+   ├─ Loop through all clinics in storage
    ├─ For each clinic: call generateClinicProfile(clinicData)
-   └─ Save result to Airtable "Clinics" table (profile_content field)
+   └─ Save result to the clinic record (profile_content field)
 
 2. Claude Service (claude.js:generateClinicProfile)
    ├─ Load prompt from: backend/prompts/content.md
@@ -148,7 +149,7 @@
    ├─ Guidelines: Be honest, highlight differentiators, no outcome promises
    └─ Return: Markdown text
 
-4. Save to Airtable
+4. Save via storage.js
    ├─ Update clinic record with profile_content field
    ├─ Log operation: Input, Prompt, Output, Timestamp, Status
    └─ Mark as ready for frontend display
@@ -169,9 +170,9 @@
 
 ## Configuration Files
 
-### `backend/config/airtable-schema.json`
+### `backend/config/data-schema.json`
 
-Defines all Airtable tables + fields:
+Defines each collection (one JSON file in `backend/data/` now, one MySQL table later) and its fields:
 
 ```json
 {
@@ -241,7 +242,7 @@ This enables:
 ```
 Research Phase
 ↓
-Clinics in Airtable with: name, location, certifications, reviews, pricing
+Clinics in data/clinics.json with: name, location, certifications, reviews, pricing
 ↓
 User Search
 ↓
@@ -251,7 +252,7 @@ Ranked clinics returned to frontend
 ↓
 Content Generation Phase (async)
 ↓
-Profiles + guides generated + stored in Airtable
+Profiles + guides generated + stored via storage.js
 ↓
 Frontend displays complete clinic profiles
 ↓
@@ -275,21 +276,47 @@ Task queued (Bull queue, AWS SQS, etc.)
 ↓
 Worker processes: runs research pipeline
 ↓
-Results stored in Airtable
+Results stored via storage.js
 ↓
-Researcher notified: "50 clinics added to Airtable"
+Researcher notified: "50 clinics added"
 ↓
 Operations logged: who submitted, when, results
 ```
 
-Same infrastructure, just with an extra queue layer.
+Same infrastructure, just with an extra queue layer. Multiple writers is also the point where JSON files stop being safe (see below), so this is the trigger to move to MySQL.
+
+---
+
+## Storage Strategy
+
+**Now: JSON files.** One file per collection in `backend/data/` (`clinics.json`, `procedures.json`, `reviews.json`, `resources.json`, `operations-log.json`). Human-readable, diffable in git, zero setup.
+
+**Later: MySQL** (open source). Move when any of these happen:
+- More than one person/process writes at the same time (JSON files have no locking; concurrent writes can lose data)
+- Clinic count reaches the thousands and full-file reads slow down matching
+- We need real queries (filter/sort/join across clinics, reviews, procedures)
+
+**How we keep the migration cheap:** all data access goes through `backend/src/services/storage.js`. Routes, scripts, and Claude services never read or write files directly. The module exposes a small interface:
+
+```js
+getAll(collection)                // all records
+getById(collection, id)
+find(collection, filterFn)        // e.g. clinics in a city
+insert(collection, record)        // assigns id + created_at
+update(collection, id, changes)
+log(operation)                    // append to operations-log
+```
+
+Switching to MySQL means writing a second implementation of these same functions (using `mysql2`) and flipping a `STORAGE_BACKEND=json|mysql` env var. `data-schema.json` doubles as the source for the MySQL `CREATE TABLE` statements, and a one-time script (`migrate-json-to-mysql.js`) loads the existing JSON into the tables.
+
+Rules while on JSON: every record has a stable `id`, relationships use ids (e.g. a review has `clinic_id`, not just a name), and writes are done by one process at a time.
 
 ---
 
 ## Next: Data Model
 
 Once you approve this architecture, we'll define:
-1. Airtable table schemas (detailed fields + types)
+1. JSON data schemas (detailed fields + types, written so they map cleanly to MySQL tables)
 2. Business rules (scoring weights, thresholds)
 3. Claude prompts (detailed instructions)
 
