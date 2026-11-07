@@ -35,12 +35,14 @@ function findComponent(place: PlacesResult, type: string): AddressComponent | un
 
 /**
  * Turns one Places result into a candidate Clinic.
+ * `place` should be fetched without a languageCode so displayName is the local name;
+ * pass the English displayName (from a languageCode "en" fetch) as nameEnglish.
  * Returns null if a required field is missing: we skip incomplete results, never guess.
  *
  * Note: this is an in-memory conversion for research. Before saving anything
  * beyond googlePlaceId, check Google's current storage terms.
  */
-export function placesToClinic(place: PlacesResult): Clinic | null {
+export function placesToClinic(place: PlacesResult, nameEnglish?: string): Clinic | null {
   const name = place.displayName?.text;
   const country = findComponent(place, "country")?.shortText;
   const city = (
@@ -52,7 +54,8 @@ export function placesToClinic(place: PlacesResult): Clinic | null {
 
   return {
     id: `gp-${place.id}`,
-    name,
+    localName: name,
+    nameEnglish: nameEnglish && nameEnglish !== name ? nameEnglish : undefined,
     country,
     city,
     address,
