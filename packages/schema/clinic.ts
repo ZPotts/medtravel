@@ -6,8 +6,18 @@
 /** "candidate" = found but not checked. "verified" = checked by us against an official source. */
 export type ClinicStatus = "candidate" | "verified";
 
+export type Category =
+  | "dental"
+  | "cosmetic"
+  | "orthopedic"
+  | "bariatric"
+  | "cardiac"
+  | "fertility"
+  | "other";
+
 export type Clinic = {
   id: string;
+  category: Category;
 
   /** Name as the clinic writes it, in its own language. */
   localName: string;

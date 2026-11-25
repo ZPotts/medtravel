@@ -25,9 +25,12 @@ Research approximately 25 clinics that offer DENTAL services in MEXICO CITY.
 For EACH clinic, extract the following data in JSON format:
 
 {
-  "clinic_name": "Exact clinic name",
+  "clinic_name": "Name as the clinic writes it, in its own language",
+  "english_name": "Optional English Name",
   "country": "Country name",
-  "city": "City name",
+  "country_code": "MX",
+  "city": "Tijuana",
+  "address": "Av. Revolución 123, Zona Centro, Tijuana",
   "website": "https://... or null if not found",
   "email": "clinic@example.com or null",
   "phone": "+country-code or null",
