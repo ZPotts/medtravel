@@ -1,4 +1,4 @@
-# Getting Started: Medical Travel Directory
+# Local Setup: Medical Travel Directory
 
 ## Prerequisites
 
