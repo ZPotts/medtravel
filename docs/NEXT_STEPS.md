@@ -5,6 +5,7 @@
    - fill in `AGENTS.md` (empty): project overview, folder layout, conventions (ask before editing, schema layering, master JSON rules)
    - refresh `ARCHITECTURE.md`, `GETTING_STARTED.md`, `docs/RESEARCH_SCRIPT_GUIDE.md`: they assume an Anthropic API key and an old script name, not the paste-into-any-agent workflow
    - sync `apps/web/admin/MANUAL_RESEARCH_PROMPT.md` with the template in `apps/web/admin/index.html`, or delete the `.md`
+   - create a markdown file for general business operations. an operations bible, explaining that this is an AI-driven company.
 1. Finish the schema in `packages/schema/`: `researchRun.ts` first (`Credential.runId` points at it), then `reviewSnapshot.ts`, `doctor.ts`, `observation.ts`.
 2. Create a master JSON for pulled data and for use on the site. Suggested: one file with arrays `clinics`, `reviewSnapshots`, `credentials`, `runs`. Raw per-run research files stay separate.
 3. Write a function that updates the master JSON from a research run:
