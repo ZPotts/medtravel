@@ -1,152 +1,59 @@
-# Local Setup: Medical Travel Directory
+# Local Setup
+
+This repo has no build step for the admin page. You can open it in a browser.
 
 ## Prerequisites
 
-- **Node.js 18+** (check: `node --version`)
-- **Anthropic API key** (get from https://console.anthropic.com/api-keys)
-- **Git** (for version control)
+- **Git**, for version control
+- **A web browser**, for the admin page
+- **Node.js 18+** (only needed for the backend scripts; check with `node --version`)
+- **A web-browsing AI agent**, for research (any of: Claude, ChatGPT, Gemini, Perplexity)
 
----
-
-## Step 1: Set Up Your Environment
-
-### 1a. Get Anthropic API Key
-
-1. Go to https://console.anthropic.com/api-keys
-2. Click "Create Key"
-3. Copy the key (starts with `sk-ant-...`)
-
-### 1b. Configure Environment File
+## 1. Get the code
 
 ```bash
 cd ~/Dev/medtravel
-cp backend/.env.example backend/.env
+git status
 ```
 
-Edit `backend/.env`:
-```
-ANTHROPIC_API_KEY=sk-ant-XXXXX... (your key from 1a)
-STORAGE_BACKEND=json
-PORT=3001
-NODE_ENV=development
-```
+## 2. Open the admin page
 
----
-
-## Step 2: Install Dependencies
+Open `apps/web/admin/index.html` in a browser. You can double-click it in Finder, or run:
 
 ```bash
-# Backend
+open apps/web/admin/index.html
+```
+
+The page is static. It cannot save files, so results are saved by hand (see [docs/RESEARCH_SCRIPT_GUIDE.md](docs/RESEARCH_SCRIPT_GUIDE.md)).
+
+## 3. Run a test research pass
+
+1. Enter a city (for example, `Tijuana`) and choose a service.
+2. Keep Mode on **Test (3 clinics)**.
+3. Click **Generate prompt**, then **Copy prompt**.
+4. Paste the prompt into an AI agent that can browse the web.
+5. Copy the JSON array the agent returns.
+6. Paste it into the **Check results** box and click **Show table**.
+7. Save the JSON as `research_results/<city>_<service>_<date>.json`, for example `research_results/tijuana_dental_2026-11-25.json`.
+
+## Optional: backend scripts
+
+Only needed if we use the Claude API directly. We have no API key yet.
+
+```bash
 cd backend
+cp .env.example .env        # then add your key to .env
 npm install
-
-# Frontend (in new terminal)
-cd frontend
-npm install
+npm run agent:research -- --destination "Tijuana" --procedure "Dental" --count 3
 ```
 
----
-
-## Step 3: Initialize Data Files
-
-Data is stored as JSON files in `backend/data/` (we'll move to MySQL when we need to scale; see ARCHITECTURE.md → Storage Strategy).
-
-Once we build `backend/scripts/init-data.js`, run:
-```bash
-node backend/scripts/init-data.js
-```
-
-This creates empty `clinics.json`, `procedures.json`, `reviews.json`, `resources.json`, and `operations-log.json` matching `backend/config/data-schema.json`. No account or database setup needed.
-
----
-
-## Step 4: Run Locally
-
-### Terminal 1: Backend
-
-```bash
-cd backend
-npm start
-```
-
-You should see:
-```
-Backend running on port 3001
-```
-
-### Terminal 2: Test It
-
-```bash
-curl http://localhost:3001/health
-```
-
-You should see:
-```json
-{
-  "status": "ok",
-  "timestamp": "2024-09-11T...",
-  "environment": "development"
-}
-```
-
-### Terminal 3: Frontend (Optional for now)
-
-```bash
-cd frontend
-npm run dev
-```
-
-You should see:
-```
-ready - started server on 0.0.0.0:3000
-```
-
----
-
-## Step 5: First Test
-
-Once everything is running, test the research pipeline:
-
-```bash
-cd backend
-node scripts/research-clinics.js --destination "Mexico City" --procedure "Dental"
-```
-
-This will:
-1. Call Claude API
-2. Research 30-50 clinics
-3. Print results to console
-4. (Later: save to backend/data/clinics.json)
-
-If you see clinic data printed, **you're set!**
-
----
+Do not commit `backend/.env`. It holds secrets.
 
 ## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
-| "Cannot find module" | Run `npm install` in backend/ and frontend/ |
-| "ANTHROPIC_API_KEY is undefined" | Check `.env` file exists and has your key (no quotes) |
-| "ENOENT ... data/clinics.json" | Run `node backend/scripts/init-data.js` to create the data files |
-| "Port 3001 already in use" | Kill existing process: `lsof -i :3001` then `kill -9 <PID>` |
-| "research-clinics.js not found" | We haven't built the script yet. We'll do this next step. |
-
----
-
-## What's Next?
-
-1. ✅ You've read ARCHITECTURE.md (how everything fits together)
-2. ✅ You've set up locally (backend running on 3001, frontend on 3000)
-3. ⏳ We'll build the data model (JSON data schema + business rules)
-4. ⏳ We'll build the research pipeline (research-clinics.js script)
-5. ⏳ We'll build the matching engine (/api/match endpoint)
-6. ⏳ We'll build the UI (React search + clinic detail)
-
----
-
-## Quick Reference
-
-See **QUICK_REF.md** for common commands + debugging.
-
-Ready to move forward? Let's build the data model next!
+| The admin page does not show the table | Check that the pasted text is a JSON array. Remove any text the agent added before or after it. |
+| The prompt has the wrong city or service | Generate it again. The form fields are read on submit. |
+| `npm install` fails in `backend/` | Check `node --version` is 18 or later. |
+| `ANTHROPIC_API_KEY` is missing | Set it in `backend/.env` (no quotes). Only needed for the API script. |

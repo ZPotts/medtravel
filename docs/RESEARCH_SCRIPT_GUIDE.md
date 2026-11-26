@@ -1,278 +1,138 @@
-# Research Script Guide
+# Research Guide
 
-## Overview
+How we research clinics for a city and service, and how the results are checked.
 
-`research-clinics.js` is a Node.js CLI script that uses Claude API to research medical clinics for a given destination + procedure and outputs **clean, structured JSON** for analysis.
+## Two ways to research
 
-## Features
+| Method | Status | Needs |
+|--------|--------|-------|
+| **Paste workflow** (primary) | In use | A browser and any web-browsing AI agent |
+| **API script** `backend/scripts/agent-research-clinics.js` | Updated, not yet run against the live API | An Anthropic API key |
 
-✅ **Super Structured JSON** — Every clinic field is consistent, clean, ready for analysis
-✅ **Data Quality Validation** — Tracks confidence levels (HIGH/MEDIUM/LOW)
-✅ **Multi-Source Reviews** — Aggregates Google, TripAdvisor, RealSelf ratings
-✅ **Audit Trail** — Logs API usage, timestamp, token count
-✅ **Summary Report** — Prints quality metrics + top 5 clinics to console
-✅ **Safe Defaults** — Uses `null` for missing data (not "N/A" or empty strings)
+We use the paste workflow for now. The API script is ready once we have a key.
 
-## Installation
+## Paste workflow
+
+### 1. Build the prompt
+
+Open `apps/web/admin/index.html` in a browser.
+
+- **City:** the city to research, for example `Tijuana`.
+- **Service:** Dental, Cosmetic, Orthopedic, Bariatric, Cardiac, Fertility or Other.
+- **Mode:**
+  - **Test (3 clinics)** for checking the prompt and the output.
+  - **Live (25 clinics)** for real research.
+
+Click **Generate prompt**, then **Copy prompt**.
+
+The prompt text lives in one place: the `TEMPLATE` constant in `index.html`. Change it there. Do not copy it anywhere else. [apps/web/admin/MANUAL_RESEARCH_PROMPT.md](../apps/web/admin/MANUAL_RESEARCH_PROMPT.md) points here.
+
+### 2. Run it in an agent
+
+Paste the prompt into an AI agent that can browse the web. The agent should return a JSON array, one object per clinic, and nothing else.
+
+Do not accept answers from memory. The prompt tells the agent to browse the live web.
+
+### 3. Check the results
+
+1. Copy the JSON array the agent returned.
+2. Paste it into the **Check results** box on the admin page.
+3. Click **Show table**. Click a column header to sort.
+4. Look for empty fields, scores outside 1 to 5, URLs that do not start with `http`, and duplicate clinics.
+5. Use **Download CSV** if you want to review it in a spreadsheet.
+
+### 4. Save the raw output
+
+Save the JSON as a file in `research_results/`, named:
+
+```
+<city>_<service>_<date>.json
+```
+
+Example: `research_results/tijuana_dental_2026-11-25.json`
+
+Raw run files stay separate from the master JSON. They are the audit trail for each run.
+
+## Output fields
+
+The fields are defined in the prompt. The prompt is the reference. Summary of the main fields:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `clinic_name` | string | Name as the clinic writes it |
+| `english_name` | string or null | Only if different |
+| `country`, `country_code` | string | `country_code` is ISO 3166-1 alpha-2 |
+| `city`, `address` | string | |
+| `website`, `email`, `phone` | string or null | URLs start with `http` |
+| `lead_doctor_name`, `doctor_certifications` | string or null | |
+| `clinic_certifications` | string[] | Only certifications the agent found. Empty array if none. |
+| `languages_spoken`, `specialties` | string[] | Specialties come from a fixed list |
+| `years_in_business` | number or null | |
+| `review_sources` | array of objects | One object per review source the agent found, in any language. Each has `source`, `language` (BCP 47, or null), `rating`, `rating_scale` (usually 5, sometimes 10), `review_count`, `url`, `observed_at`. |
+| `computed_review_score` | number 1 to 5 | One decimal place. Each rating is converted to a 1-5 scale, then averaged weighted by `review_count`. |
+| `total_review_count` | number | Sum across sources |
+| `typical_procedure_cost` | string or null | USD range |
+| `patient_satisfaction_percent` | number 0 to 100 or null | |
+| `common_feedback_themes` | string[] | |
+| `data_sources` | string[] | URLs the agent used |
+| `research_confidence` | `HIGH`, `MEDIUM` or `LOW` | |
+| `notes` | string or null | Red flags and context |
+
+Rules the agent follows: use `null` for missing values (not `"N/A"` or `""`), use `[]` for empty arrays, use real numbers (not strings), and never invent a clinic, URL, rating or credential.
+
+## Rules for merging (planned)
+
+These apply when we build the merge function. See [ARCHITECTURE.md](../ARCHITECTURE.md#merge-rules-planned).
+
+- Validate before merging: required fields, scores from 1 to 5, URLs start with `http`.
+- Dedupe by website, or by name plus city.
+- Never overwrite or downgrade `verified` data with `claimed` data.
+- Skip incomplete rows and report them.
+
+## Quality checklist
+
+Before using a run's data:
+
+- [ ] `clinic_name`, `country`, `city` are filled in
+- [ ] `computed_review_score` is between 1 and 5
+- [ ] `research_confidence` is HIGH for most clinics
+- [ ] `languages_spoken` has at least one language
+- [ ] `data_sources` URLs look valid
+- [ ] Prices look reasonable for the service
+- [ ] No duplicate clinic names
+
+## API script
+
+`backend/scripts/agent-research-clinics.js` runs the same prompt as the admin page through the Claude API and writes JSON to `research_results/`.
 
 ```bash
 cd backend
-
-# Install dependencies (if not already installed)
-npm install anthropic yargs dotenv
-
-# Verify script is executable
-chmod +x scripts/research-clinics.js
+npm install
+npm run agent:research -- --destination "Tijuana" --procedure "Dental" --count 3
 ```
 
-## Usage
+What it does:
 
-```bash
-# Basic usage
-node scripts/research-clinics.js --destination "Mexico City" --procedure "Dental"
+- Uses the server-side web search tool, so the model browses the live web instead of answering from memory.
+- Uses `claude-opus-5-5` by default. Set `ANTHROPIC_MODEL` in `backend/.env` to change it.
+- Streams the response, and continues if the server pauses a long search.
+- Opts in to server-side refusal fallbacks (`fallbacks: "default"`). Tell the team if you want this off.
+- Saves the same JSON shape the admin page expects.
 
-# With options
-node scripts/research-clinics.js \
-  --destination "Mexico City" \
-  --procedure "Dental" \
-  --count 50 \
-  --output-dir research_results
+Things to know:
 
-# Short flags
-node scripts/research-clinics.js -d "Bangkok" -p "Cosmetic Surgery" -c 30
-```
+- It needs `ANTHROPIC_API_KEY` in `backend/.env`.
+- The prompt is copied from `TEMPLATE` in `apps/web/admin/index.html`. If one changes, change the other. Moving the prompt to one shared file would remove this risk.
+- The script has not yet been run against the live API. The first run should be the 3-clinic test.
+- Each run costs tokens and web searches. Check the summary's token counts after the first run.
 
-## Options
-
-| Option | Short | Type | Default | Description |
-|--------|-------|------|---------|-------------|
-| `--destination` | `-d` | string | required | City/region (e.g., "Mexico City") |
-| `--procedure` | `-p` | string | required | Medical procedure (e.g., "Dental") |
-| `--count` | `-c` | number | 50 | Number of clinics to research |
-| `--output-dir` | `-o` | string | `research_results` | Output directory |
-
-## Output
-
-The script creates a JSON file: `research_results/mexico-city_dental_2024-09-21.json`
-
-```json
-{
-  "clinics": [
-    {
-      "clinic_name": "Smile Dental Mexico",
-      "country": "Mexico",
-      "city": "Mexico City",
-      "website": "https://smiledentalmexico.com",
-      "email": "contact@smiledentalmexico.com",
-      "phone": "+52-55-1234-5678",
-      "lead_doctor_name": "Dr. Carlos Mendez",
-      "doctor_certifications": "DDS, Prosthodontist, Harvard Dental School",
-      "clinic_certifications": ["JCI", "ISO"],
-      "languages_spoken": ["English", "Spanish"],
-      "specialties": ["Dental"],
-      "years_in_business": 15,
-      "review_sources": {
-        "google": {
-          "rating": 4.8,
-          "review_count": 245,
-          "url": "https://maps.google.com/..."
-        },
-        "tripadvisor": {
-          "rating": 4.7,
-          "review_count": 189,
-          "url": "https://www.tripadvisor.com/..."
-        },
-        "realself": {
-          "rating": 4.6,
-          "review_count": 127,
-          "url": "https://www.realself.com/..."
-        }
-      },
-      "computed_review_score": 4.7,
-      "total_review_count": 561,
-      "typical_procedure_cost": "$1200-$3500",
-      "patient_satisfaction_percent": 92,
-      "common_feedback_themes": ["Professional staff", "Clean facility", "Good results"],
-      "data_sources": ["https://smiledentalmexico.com", "https://maps.google.com/..."],
-      "research_confidence": "HIGH",
-      "notes": "Well-established clinic with strong reputation"
-    },
-    ...
-  ],
-  "metadata": {
-    "destination": "Mexico City",
-    "procedure": "Dental",
-    "target_count": 50,
-    "actual_count": 47,
-    "timestamp": "2024-09-21T15:30:00.000Z",
-    "claude_model": "claude-3-5-sonnet-20241022",
-    "input_tokens": 2500,
-    "output_tokens": 5800,
-    "total_tokens": 8300
-  }
-}
-```
-
-## JSON Schema
-
-Each clinic object has:
-
-```typescript
-{
-  clinic_name: string,              // Clinic's official name
-  country: string,                  // Country name
-  city: string,                     // City name
-  website: string | null,           // URL or null
-  email: string | null,             // Email or null
-  phone: string | null,             // International format or null
-  lead_doctor_name: string | null,  // Primary doctor or null
-  doctor_certifications: string | null,  // Comma-separated (e.g., "DDS, Prosthodontist")
-  clinic_certifications: string[],  // Array of certs (JCI, ISO, AACD, ASPS)
-  languages_spoken: string[],       // Languages staff can communicate in
-  specialties: string[],            // Dental, Cosmetic, Orthopedic, etc.
-  years_in_business: number | null, // Number of years operating
-  review_sources: {
-    google?: { rating: number, review_count: number, url: string },
-    tripadvisor?: { rating: number, review_count: number, url: string },
-    realself?: { rating: number, review_count: number, url: string }
-  },
-  computed_review_score: number,    // Weighted average (1-5), 1 decimal place
-  total_review_count: number,       // Sum across all sources
-  typical_procedure_cost: string | null,  // "$1000-$3000" or null
-  patient_satisfaction_percent: number | null,  // 0-100 or null
-  common_feedback_themes: string[], // Array of themes from reviews
-  data_sources: string[],           // URLs where data was found
-  research_confidence: "HIGH" | "MEDIUM" | "LOW",
-  notes: string | null              // Any special observations
-}
-```
-
-## Console Output Example
-
-```
-📍 Researching Dental clinics in Mexico City...
-Target: 50 clinics
-
-✅ Successfully researched 47 clinics
-
-================================================================================
-RESEARCH SUMMARY
-================================================================================
-Destination: Mexico City
-Procedure: Dental
-Clinics Found: 47 / 50 target
-Timestamp: 2024-09-21T15:30:00.000Z
-
-Tokens Used: 8300
-  - Input: 2500
-  - Output: 5800
-
-Top 5 Clinics (by review score):
-────────────────────────────────────────────────────────────────────────────────
-1. Smile Dental Mexico
-   Location: Mexico City, Mexico
-   Review Score: 4.8/5 (561 reviews)
-   Cost: $1200-$3500
-   Languages: English, Spanish
-   Website: https://smiledentalmexico.com
-
-2. Bright Smile Clinic
-   Location: Mexico City, Mexico
-   Review Score: 4.7/5 (432 reviews)
-   Cost: $800-$2500
-   Languages: English, Spanish
-   Website: https://brightsmiledental.mx
-
-...
-
-Data Quality:
-────────────────────────────────────────────────────────────────────────────────
-✅ Valid records: 47/47
-📊 Confidence Levels:
-   - HIGH: 42
-   - MEDIUM: 5
-   - LOW: 0
-
-================================================================================
-
-💾 Results saved to: research_results/mexico-city_dental_2024-09-21.json
-
-✨ Research complete! You can now:
-   1. Review the JSON file for data quality
-   2. Compare against your notes
-   3. Run data analysis
-   4. Later: Import into PostgreSQL
-```
-
-## Data Analysis (Next Steps)
-
-Once you have the JSON file, you can:
-
-```bash
-# View the file
-cat research_results/mexico-city_dental_2024-09-21.json | jq .
-
-# Get clinic count
-jq '.clinics | length' research_results/mexico-city_dental_2024-09-21.json
-
-# Get all clinic names
-jq '.clinics[].clinic_name' research_results/mexico-city_dental_2024-09-21.json
-
-# Get top 10 by review score
-jq '.clinics | sort_by(.computed_review_score) | reverse | .[0:10]' research_results/mexico-city_dental_2024-09-21.json
-
-# Get all high-confidence clinics
-jq '.clinics[] | select(.research_confidence == "HIGH")' research_results/mexico-city_dental_2024-09-21.json
-
-# Compare your notes against the JSON
-# (write your own analysis script)
-```
+Setup steps are in [LOCAL_SETUP.md](../LOCAL_SETUP.md).
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| "ANTHROPIC_API_KEY not found" | Set env var: `export ANTHROPIC_API_KEY=sk-ant-...` |
-| "command not found: node" | Install Node.js 18+ from nodejs.org |
-| "Cannot find module 'anthropic'" | Run `npm install anthropic yargs dotenv` |
-| "Invalid JSON output" | Claude didn't return valid JSON. Try again (occasional issue). |
-| "Timeout (30+ sec)" | Claude API taking time. Script will retry. |
-
-## Quality Checklist
-
-Before using the data, verify:
-
-- [ ] All `clinic_name`, `country`, `city` are populated (not null)
-- [ ] `computed_review_score` is between 1-5
-- [ ] `research_confidence` is HIGH for most clinics
-- [ ] `languages_spoken` includes at least one language
-- [ ] `data_sources` URLs are valid
-- [ ] Procedure costs look reasonable for the procedure type
-- [ ] No obviously duplicate clinic names
-
-## Example: First Run
-
-```bash
-cd ~/Dev/medtravel
-
-# Make sure .env is set up
-# cp backend/.env.example backend/.env
-# Edit with ANTHROPIC_API_KEY
-
-# Run research
-node backend/scripts/research-clinics.js --destination "Mexico City" --procedure "Dental" --count 50
-
-# Check results
-ls -la backend/research_results/
-cat backend/research_results/mexico-city_dental_*.json | jq '.metadata'
-```
-
-## Next Steps
-
-1. Run the script for your first destination
-2. Review the JSON output
-3. Compare against your own notes
-4. Run data analysis
-5. Once verified: import into PostgreSQL
-
-Good luck! 🚀
+| Table does not show | The pasted text is not a valid JSON array. Remove any text the agent added before or after the array. |
+| Agent returned fewer clinics than asked | Fine. The prompt says to return fewer if it cannot find real clinics. |
+| Agent returned clinics with no sources | Do not merge them. Re-run, or mark them `candidate` and check by hand. |
+| Prompt has old text | Regenerate it. Make sure you copied the prompt after clicking **Generate prompt**. |

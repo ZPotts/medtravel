@@ -1,33 +1,41 @@
 #!/usr/bin/env node
 
 /**
- * Medical Travel Directory - AI Research Agent
- * 
- * An AI-driven agent that researches medical clinics for a given destination + procedure
- * using Claude API and outputs clean, structured JSON for data analysis.
- * 
+ * MediTravel - AI research agent (Anthropic API version)
+ *
+ * Runs the same research prompt as the admin page (apps/web/admin/index.html, TEMPLATE)
+ * through the Claude API with the server-side web search tool, so the model browses the
+ * live web instead of answering from memory. Output is clean JSON for review.
+ *
  * Usage:
- *   node scripts/agent-research-clinics.js --destination "Mexico City" --procedure "Dental"
- * 
+ *   node scripts/agent-research-clinics.js --destination "Tijuana" --procedure "Dental" --count 3
+ *
+ * Setup:
+ *   ANTHROPIC_API_KEY in backend/.env
+ *   Optional: ANTHROPIC_MODEL to override the default model
+ *
  * Output:
- *   research_results/mexico-city_dental_[timestamp].json
+ *   research_results/tijuana_dental_2026-11-25.json
+ *
+ * NOTE: the prompt below mirrors TEMPLATE in apps/web/admin/index.html. If you change one,
+ * change the other.
  */
 
 import Anthropic from '@anthropic-ai/sdk';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
-// Load environment variables
+// Load environment variables before creating the client
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5-5';
+const MAX_TOKENS = 64000;      // streamed, so large outputs don't hit HTTP timeouts
+const MAX_WEB_SEARCHES = 20;   // cap on server-side searches per run
+const MAX_PAUSE_TURNS = 5;     // cap on pause_turn continuations
 
-// Initialize Anthropic client
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
@@ -38,13 +46,13 @@ const client = new Anthropic({
 const argv = yargs(hideBin(process.argv))
   .option('destination', {
     alias: 'd',
-    describe: 'Destination city/region (e.g., "Mexico City", "Bangkok")',
+    describe: 'City to research (e.g., "Tijuana", "Mexico City")',
     type: 'string',
     demandOption: true,
   })
   .option('procedure', {
     alias: 'p',
-    describe: 'Medical procedure (e.g., "Dental", "Cosmetic Surgery")',
+    describe: 'Service to research (e.g., "Dental", "Cosmetic")',
     type: 'string',
     demandOption: true,
   })
@@ -56,28 +64,31 @@ const argv = yargs(hideBin(process.argv))
   })
   .option('count', {
     alias: 'c',
-    describe: 'Number of clinics to research (default: 50)',
+    describe: 'Number of clinics to research (admin page: test = 3, live = 25)',
     type: 'number',
-    default: 50,
+    default: 25,
   })
   .parseSync();
 
 const { destination, procedure, outputDir, count } = argv;
 
 /**
- * Generate the research prompt for Claude
+ * Build the research prompt. Mirrors TEMPLATE in apps/web/admin/index.html.
  */
-function generateResearchPrompt(destination, procedure, targetCount) {
-  return `You are a medical travel research agent. Your job is to research and extract data about ${procedure} clinics in ${destination}.
+function buildPrompt(city, service, targetCount) {
+  return `You are a medical travel researcher with web browsing access. Your job is to research and extract data about clinics offering ${service} in ${city}.
 
-Research approximately ${targetCount} clinics that offer ${procedure} in ${destination}.
+Research approximately ${targetCount} clinics that offer ${service} in ${city}. Browse the live web; do not answer from memory.
 
 For EACH clinic, extract the following data in JSON format:
 
 {
-  "clinic_name": "Exact clinic name",
+  "clinic_name": "Name as the clinic writes it, in its own language",
+  "english_name": "English name if different from clinic_name, else null",
   "country": "Country name",
+  "country_code": "MX" (ISO 3166-1 alpha-2, exactly 2 uppercase letters),
   "city": "City name",
+  "address": "Av. Revolución 123, Zona Centro, Tijuana" (street address as published by the clinic or Google Maps, or null),
   "website": "https://... or null if not found",
   "email": "clinic@example.com or null",
   "phone": "+country-code or null",
@@ -87,24 +98,18 @@ For EACH clinic, extract the following data in JSON format:
   "languages_spoken": ["English", "Spanish"] (languages where staff can communicate, minimum 2 chars),
   "specialties": ["Dental", "Cosmetic"] (medical specialties offered),
   "years_in_business": 15 (number only, null if unknown),
-  "review_sources": {
-    "google": {
+  "review_sources": [
+    {
+      "source": "google" (lowercase site name, e.g. google, tripadvisor, realself, trustpilot, doctoralia, or a local site),
+      "language": "es" (BCP 47 language of the reviews, e.g. en, es, tr, th; null if mixed or unknown),
       "rating": 4.8,
+      "rating_scale": 5 (top of the site's own scale: usually 5, sometimes 10),
       "review_count": 245,
-      "url": "https://maps.google.com/..."
-    },
-    "tripadvisor": {
-      "rating": 4.7,
-      "review_count": 189,
-      "url": "https://www.tripadvisor.com/..."
-    },
-    "realself": {
-      "rating": 4.6,
-      "review_count": 127,
-      "url": "https://www.realself.com/..."
+      "url": "https://maps.google.com/...",
+      "observed_at": "2026-11-25" (date shown on the source, or null)
     }
-  },
-  "computed_review_score": 4.7 (number 1-5, weighted average from sources),
+  ] (one object per review source you can verify; empty array if none),
+  "computed_review_score": 4.7 (number 1-5: convert each rating to a 1-5 scale, then average weighted by review_count),
   "total_review_count": 561 (sum of all reviews across sources),
   "typical_procedure_cost": "$1200-$3500" (range in USD or null),
   "patient_satisfaction_percent": 92 (0-100 or null),
@@ -127,13 +132,15 @@ IMPORTANT RULES:
 6. URLs must start with http:// or https://
 7. Be conservative with review scores - only include sources you can verify.
 8. years_in_business: number only, null if uncertain.
-9. computed_review_score: round to 1 decimal (e.g., 4.7), calculate as weighted average.
+9. computed_review_score: convert each rating to a 1-5 scale (rating / rating_scale * 5), average them weighted by review_count, round to 1 decimal. null if there are no review sources.
 10. For specialties, use only: Dental, Cosmetic, Orthopedic, Bariatric, Cardiac, Fertility, Other.
+11. Never invent a clinic, URL, rating or credential. If you find fewer than ${targetCount} real clinics, return fewer.
+12. Include every review source you can verify, in any language. Do not limit yourself to the examples above.
 
 RESEARCH METHODOLOGY:
-1. Search for: "[${destination}] [${procedure}] clinic", "[${destination}] medical tourism"
+1. Search in English AND in the local language of ${city}. For example, for "${service} clinic" also search the translated terms and "reseñas" or "opiniones" in Spanish, "yorumlar" in Turkish, or "รีวิว" in Thai, as the country requires.
 2. Prioritize clinics with: websites, multiple reviews, visible credentials
-3. Extract from: clinic websites, Google Maps, TripAdvisor, RealSelf, medical forums
+3. Extract reviews from: clinic websites, Google Maps, and any review site, directory, forum or local platform that lists the clinic (international or local)
 4. Verify data before including (don't speculate)
 5. If information is missing, mark as null and set confidence appropriately
 
@@ -141,102 +148,142 @@ Return the JSON array now (no other text):`;
 }
 
 /**
- * Call Claude API to research clinics
+ * Run the research. Uses server-side web search so the model browses instead of
+ * answering from memory. Streams the response, continues on pause_turn, and opts in
+ * to refusal fallbacks (server-side, routed by refusal category).
  */
-async function researchClinics(destination, procedure, targetCount) {
-  console.log(`\n🤖 Medical Travel Research Agent Activated`);
-  console.log(`📍 Researching ${procedure} clinics in ${destination}...`);
-  console.log(`🎯 Target: ${targetCount} clinics\n`);
+async function runResearch(prompt) {
+  const messages = [{ role: 'user', content: prompt }];
+  let pauses = 0;
 
-  const prompt = generateResearchPrompt(destination, procedure, targetCount);
+  while (true) {
+    const response = await client.beta.messages
+      .stream({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        thinking: { type: 'adaptive' },
+        output_config: { effort: 'high' },
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
+        tools: [
+          {
+            type: 'web_search_20260209',
+            name: 'web_search',
+            max_uses: MAX_WEB_SEARCHES,
+          },
+        ],
+        messages,
+      })
+      .finalMessage();
 
-  try {
-    const response = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 8000,
-      temperature: 0.3,
-      system: 'You are a medical travel research agent. Extract data accurately and completely. Return ONLY valid JSON array, no other text.',
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-    });
-
-    const responseText = response.content[0]?.text || '';
-
-    // Parse JSON response
-    let clinics;
-    try {
-      clinics = JSON.parse(responseText);
-    } catch (e) {
-      console.error('❌ Failed to parse Claude response as JSON');
-      console.error('Response:', responseText.substring(0, 500));
-      throw new Error('Invalid JSON response from Claude');
+    if (response.stop_reason !== 'pause_turn') {
+      return response;
     }
 
-    if (!Array.isArray(clinics)) {
-      throw new Error('Claude response is not a JSON array');
+    pauses += 1;
+    if (pauses > MAX_PAUSE_TURNS) {
+      throw new Error(`Research paused more than ${MAX_PAUSE_TURNS} times; giving up`);
     }
-
-    console.log(`✅ Agent successfully researched ${clinics.length} clinics\n`);
-
-    return {
-      clinics,
-      metadata: {
-        destination,
-        procedure,
-        target_count: targetCount,
-        actual_count: clinics.length,
-        timestamp: new Date().toISOString(),
-        agent_model: 'claude-3-5-sonnet-20241022',
-        input_tokens: response.usage.input_tokens,
-        output_tokens: response.usage.output_tokens,
-        total_tokens: response.usage.input_tokens + response.usage.output_tokens,
-      },
-    };
-  } catch (error) {
-    console.error('❌ Error calling Claude API:', error.message);
-    throw error;
+    // Send the assistant turn back unchanged so the server can resume it
+    messages.push({ role: 'assistant', content: response.content });
   }
 }
 
 /**
- * Validate clinic data structure
+ * Pull the clinic array out of the response.
+ */
+function extractClinics(response) {
+  if (response.stop_reason === 'refusal') {
+    const category = response.stop_details?.category ?? 'unknown';
+    throw new Error(`Model refused the request (category: ${category})`);
+  }
+  if (response.stop_reason === 'max_tokens') {
+    throw new Error('Output hit max_tokens. Try a smaller --count.');
+  }
+
+  const textBlocks = response.content.filter((block) => block.type === 'text');
+  const last = textBlocks[textBlocks.length - 1]?.text ?? '';
+  const cleaned = last.replace(/```(?:json)?/g, '').trim();
+  const start = cleaned.indexOf('[');
+  const end = cleaned.lastIndexOf(']');
+
+  if (start === -1 || end < start) {
+    console.error('Response (first 500 chars):', cleaned.substring(0, 500));
+    throw new Error('Response did not contain a JSON array');
+  }
+
+  try {
+    const clinics = JSON.parse(cleaned.slice(start, end + 1));
+    if (!Array.isArray(clinics)) {
+      throw new Error('Parsed value is not an array');
+    }
+    return clinics;
+  } catch (e) {
+    console.error('Response (first 500 chars):', cleaned.substring(0, 500));
+    throw new Error(`Failed to parse clinic JSON: ${e.message}`);
+  }
+}
+
+/**
+ * Call the API to research clinics
+ */
+async function researchClinics(city, service, targetCount) {
+  console.log(`\n🤖 Medical Travel Research Agent Activated`);
+  console.log(`📍 Researching ${service} clinics in ${city}...`);
+  console.log(`🎯 Target: ${targetCount} clinics`);
+  console.log(`🧠 Model: ${MODEL}\n`);
+
+  const prompt = buildPrompt(city, service, targetCount);
+  const response = await runResearch(prompt);
+  const clinics = extractClinics(response);
+
+  console.log(`✅ Agent successfully researched ${clinics.length} clinics\n`);
+
+  return {
+    clinics,
+    metadata: {
+      destination: city,
+      procedure: service,
+      target_count: targetCount,
+      actual_count: clinics.length,
+      timestamp: new Date().toISOString(),
+      agent_model: response.model,
+      web_searches: response.usage.server_tool_use?.web_search_requests ?? null,
+      input_tokens: response.usage.input_tokens,
+      output_tokens: response.usage.output_tokens,
+      total_tokens: response.usage.input_tokens + response.usage.output_tokens,
+    },
+  };
+}
+
+/**
+ * Check required fields on a clinic record
  */
 function validateClinic(clinic, index) {
   const required = ['clinic_name', 'country', 'city', 'computed_review_score'];
   const missing = required.filter((field) => clinic[field] === null || clinic[field] === undefined);
 
   if (missing.length > 0) {
-    console.warn(`⚠️  Clinic ${index + 1} (${clinic.clinic_name}) missing: ${missing.join(', ')}`);
+    console.warn(`⚠️  Clinic ${index + 1} (${clinic.clinic_name ?? 'unnamed'}) missing: ${missing.join(', ')}`);
   }
 
-  return {
-    clinic,
-    valid: missing.length === 0,
-    missing,
-  };
+  return { clinic, valid: missing.length === 0, missing };
 }
 
 /**
  * Save results to JSON file
  */
 function saveResults(data, outputDir) {
-  // Create output directory if it doesn't exist
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  // Generate filename
   const sanitizedDestination = data.metadata.destination.toLowerCase().replace(/\s+/g, '-');
   const sanitizedProcedure = data.metadata.procedure.toLowerCase().replace(/\s+/g, '-');
   const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
   const filename = `${sanitizedDestination}_${sanitizedProcedure}_${timestamp}.json`;
   const filepath = path.join(outputDir, filename);
 
-  // Write to file
   fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
 
   return filepath;
@@ -254,6 +301,7 @@ function printSummary(data) {
   console.log(`Destination: ${metadata.destination}`);
   console.log(`Procedure: ${metadata.procedure}`);
   console.log(`Clinics Found: ${metadata.actual_count} / ${metadata.target_count} target`);
+  console.log(`Web searches: ${metadata.web_searches ?? 'n/a'}`);
   console.log(`Timestamp: ${metadata.timestamp}`);
   console.log(`\nTokens Used: ${metadata.total_tokens}`);
   console.log(`  - Input: ${metadata.input_tokens}`);
@@ -261,14 +309,17 @@ function printSummary(data) {
   console.log('\nTop 5 Clinics (by review score):');
   console.log('-'.repeat(80));
 
-  const topClinics = clinics.sort((a, b) => (b.computed_review_score || 0) - (a.computed_review_score || 0)).slice(0, 5);
+  const topClinics = [...clinics]
+    .sort((a, b) => (b.computed_review_score || 0) - (a.computed_review_score || 0))
+    .slice(0, 5);
 
   topClinics.forEach((clinic, i) => {
+    const languages = (clinic.languages_spoken ?? []).join(', ') || 'N/A';
     console.log(`${i + 1}. ${clinic.clinic_name}`);
     console.log(`   Location: ${clinic.city}, ${clinic.country}`);
-    console.log(`   Review Score: ${clinic.computed_review_score}/5 (${clinic.total_review_count} reviews)`);
+    console.log(`   Review Score: ${clinic.computed_review_score ?? 'N/A'}/5 (${clinic.total_review_count ?? 0} reviews)`);
     console.log(`   Cost: ${clinic.typical_procedure_cost || 'N/A'}`);
-    console.log(`   Languages: ${clinic.languages_spoken.join(', ') || 'N/A'}`);
+    console.log(`   Languages: ${languages}`);
     console.log(`   Website: ${clinic.website || 'N/A'}`);
     console.log('');
   });
@@ -295,30 +346,24 @@ function printSummary(data) {
  */
 async function main() {
   try {
-    // Validate API key
     if (!process.env.ANTHROPIC_API_KEY) {
-      throw new Error('ANTHROPIC_API_KEY environment variable not set');
+      throw new Error('ANTHROPIC_API_KEY environment variable not set (add it to backend/.env)');
     }
 
-    // Research clinics
     const result = await researchClinics(destination, procedure, count);
 
-    // Print summary
     printSummary(result);
 
-    // Save to JSON
     const filepath = saveResults(result, outputDir);
     console.log(`💾 Results saved to: ${filepath}`);
-    console.log(`\n✨ Research agent complete! You can now:`);
+    console.log(`\n✨ Research agent complete! Next:`);
     console.log(`   1. Review the JSON file for data quality`);
     console.log(`   2. Compare against your notes`);
-    console.log(`   3. Run data analysis`);
-    console.log(`   4. Later: Import into PostgreSQL\n`);
+    console.log(`   3. Merge into the master JSON once that function exists\n`);
   } catch (error) {
     console.error('\n❌ Fatal error:', error.message);
     process.exit(1);
   }
 }
 
-// Run
 main();
