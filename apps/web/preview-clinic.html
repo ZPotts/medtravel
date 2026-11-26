@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clinic profile | Medtravel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light dark;
+  --paper:#FFFFFF;
+  --paper-2:#E8F4F6;
+  --ink:#0D2B33;
+  --muted:#4B6770;
+  --line:#D2E3E8;
+  --teal:#0A7480;
+  --teal-deep:#06505A;
+  --coral:#FF6B4A;
+  --coral-hover:#FF5A36;
+  --on-coral:#0D2B33;
+  --sentiment:#1D6FD8;
+  --sentiment-text:#14509E;
+  --credential:#C0820C;
+  --credential-text:#7F5503;
+  --caution:#B3261E;
+  --palm:#2E8F4E;
+  --palm-text:#1F6B38;
+  --off:#C3D5DA;
+  --display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --text:"Source Serif 4",Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --paper:#0A1A1E;
+    --paper-2:#10282D;
+    --ink:#E6F4F6;
+    --muted:#9DBBC2;
+    --line:#26414A;
+    --teal:#0A5560;
+    --teal-deep:#06262C;
+    --coral:#FF7A5C;
+    --coral-hover:#FF8C72;
+    --sentiment:#7DB4FF;
+    --sentiment-text:#9CC4FF;
+    --credential:#E6B04A;
+    --credential-text:#E6B04A;
+    --caution:#FF9A88;
+    --palm:#6FD08C;
+    --palm-text:#6FD08C;
+    --off:#2F4C55;
+  }
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--text);
+  font-size:1.0625rem;
+  line-height:1.6;
+}
+button,select,input{font-family:var(--display)}
+a{color:inherit}
+.wrap{max-width:1120px;margin:0 auto;padding:0 clamp(1rem,4vw,2.5rem)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.band :focus-visible{outline-color:#fff}
+
+/* Header */
+.band{background:var(--teal);color:#fff}
+.top{display:flex;justify-content:space-between;align-items:center;padding:1.25rem 0}
+.brand{font-family:var(--display);font-weight:700;font-size:1.3rem;letter-spacing:-0.015em;text-decoration:none;color:#fff}
+.nav{display:flex;gap:1.75rem;font-family:var(--display);font-size:.95rem}
+.nav a{text-decoration:none;color:rgba(255,255,255,.88)}
+.nav a:hover{color:#fff;text-decoration:underline;text-underline-offset:4px}
+
+/* Hero */
+.hero{padding:clamp(2rem,7vw,5.5rem) 0 clamp(2.5rem,6vw,4rem)}
+.sentence{
+  font-family:var(--display);
+  font-weight:600;
+  font-size:clamp(2.35rem,7.2vw,6rem);
+  line-height:1.12;
+  letter-spacing:-0.03em;
+  margin:0;
+}
+.sentence .line{display:block}
+.field{
+  display:inline-block;
+  position:relative;
+  background:rgba(255,255,255,.18);
+  border-bottom:.07em solid #fff;
+  border-radius:.05em .05em 0 0;
+  padding:0 .12em;
+}
+.field-label{display:inline-block;padding-right:.62em;white-space:nowrap}
+/* The real <select> sits invisibly on top of the big label. It keeps native
+   keyboard and mobile behavior, and its menu opens at a normal 16px size. */
+.field select{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  margin:0;
+  padding:0;
+  border:0;
+  opacity:0;
+  cursor:pointer;
+  -webkit-appearance:none;
+  appearance:none;
+  font:16px/1.4 var(--display);
+  letter-spacing:normal;
+  color:CanvasText;
+  background:Canvas;
+}
+.field::after{
+  content:"";
+  position:absolute;
+  right:.2em;
+  top:50%;
+  width:.26em;
+  height:.26em;
+  border-right:.07em solid currentColor;
+  border-bottom:.07em solid currentColor;
+  transform:translateY(-72%) rotate(45deg);
+  pointer-events:none;
+}
+.field:focus-within{outline:3px solid #fff;outline-offset:5px}
+
+.hero-actions{display:flex;flex-wrap:wrap;align-items:center;gap:1.25rem 2rem;margin-top:clamp(1.75rem,4vw,2.75rem)}
+.go{
+  font-weight:600;
+  font-size:1.1rem;
+  padding:.95rem 1.6rem;
+  border:0;
+  border-radius:10px;
+  background:var(--coral);
+  color:var(--on-coral);
+  cursor:pointer;
+}
+.go:hover{background:var(--coral-hover)}
+.hero-note{margin:0;max-width:34rem;color:#E3F4F6}
+
+/* Results */
+.results{border-top:1px solid var(--line);padding:clamp(2rem,5vw,3.25rem) 0 clamp(3rem,6vw,5rem)}
+.results-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:1rem 2rem}
+.results h2{font-family:var(--display);font-weight:600;font-size:clamp(1.7rem,3.4vw,2.5rem);letter-spacing:-0.025em;line-height:1.1;margin:0}
+.results h2:focus{outline:none}
+.sub{margin:.4rem 0 0;color:var(--muted)}
+.sort{display:flex;align-items:center;gap:.6rem;font-family:var(--display);font-size:.95rem;color:var(--muted)}
+.sort select{
+  font-size:.95rem;
+  color:var(--ink);
+  background:transparent;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:.45rem .7rem;
+}
+.sample{
+  margin:1.5rem 0 0;
+  padding:.7rem 1rem;
+  background:var(--paper-2);
+  border-left:4px solid var(--teal);
+  font-size:.95rem;
+}
+.chips{display:flex;flex-wrap:wrap;gap:.5rem;margin:1.25rem 0 .5rem}
+.chip{
+  font-size:.92rem;
+  padding:.4rem .95rem;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:transparent;
+  color:var(--ink);
+  cursor:pointer;
+}
+.chip[aria-pressed="true"]{background:var(--teal);color:#fff;border-color:var(--teal)}
+
+.clinics{list-style:none;margin:1.25rem 0 0;padding:0;border-bottom:1px solid var(--line)}
+.row{
+  display:grid;
+  grid-template-columns:3.2rem minmax(0,1.2fr) minmax(0,1fr) 8rem 2.6rem;
+  grid-template-areas:"rank main signals score tog" "panel panel panel panel panel";
+  column-gap:1.5rem;
+  row-gap:0;
+  align-items:center;
+  border-top:1px solid var(--line);
+  padding-top:1.5rem;
+}
+.rank{grid-area:rank;font-family:var(--display);font-weight:600;font-size:1.35rem;color:var(--muted);letter-spacing:-0.02em;padding-bottom:1.5rem}
+.main{grid-area:main;padding-bottom:1.5rem}
+.main h3{font-family:var(--display);font-weight:600;font-size:1.4rem;letter-spacing:-0.015em;line-height:1.2;margin:0}
+.city{margin:.65rem 0 0;font-family:var(--display);font-size:.95rem;font-weight:600}
+.tags{margin:.25rem 0 0;color:var(--muted);font-size:.95rem}
+.signals{grid-area:signals;padding-bottom:1.5rem}
+.sig+.sig{margin-top:.85rem}
+.sig-head{display:flex;justify-content:space-between;align-items:center;gap:.75rem;font-family:var(--display);font-size:.85rem;color:var(--muted);margin-bottom:.35rem}
+.sig-head b{font-weight:600;display:inline-flex;align-items:center;gap:.4rem}
+.sig-head .t{color:var(--sentiment-text)}
+.sig-head .c{color:var(--credential-text)}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--sentiment);border-radius:3px;transition:width .9s cubic-bezier(.2,.7,.2,1)}
+.pips{display:flex;gap:4px}
+.pips i{flex:1;height:6px;border-radius:3px;background:var(--line)}
+.pips i.on{background:var(--credential)}
+.stamp{color:var(--credential);transform:rotate(-9deg);flex:none}
+.score{grid-area:score;text-align:right;padding-bottom:1.5rem}
+.score strong{display:block;font-family:var(--display);font-weight:700;font-size:2.5rem;line-height:1;letter-spacing:-0.035em}
+.score .lbl{display:block;margin-top:.25rem;font-family:var(--display);font-size:.8rem;color:var(--muted)}
+.score .conf{display:block;font-family:var(--display);font-size:.8rem;font-weight:600}
+.conf.Low{color:var(--caution)}
+.tog{
+  grid-area:tog;
+  width:2.6rem;height:2.6rem;
+  border-radius:50%;
+  border:1px solid var(--line);
+  background:transparent;
+  color:var(--ink);
+  cursor:pointer;
+  position:relative;
+  margin-bottom:1.5rem;
+}
+.tog::before{
+  content:"";
+  position:absolute;
+  left:50%;top:50%;
+  width:.55rem;height:.55rem;
+  border-right:2px solid currentColor;
+  border-bottom:2px solid currentColor;
+  transform:translate(-50%,-70%) rotate(45deg);
+  transition:transform .25s ease;
+}
+.tog[aria-expanded="true"]::before{transform:translate(-50%,-30%) rotate(-135deg)}
+.tog:hover{border-color:var(--ink)}
+
+.panel{grid-area:panel;display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s ease}
+.panel[data-open="true"]{grid-template-rows:1fr}
+.panel-in{overflow:hidden;min-height:0}
+.panel:not([data-open="true"]) .panel-in{visibility:hidden}
+.panel-grid{
+  display:grid;
+  grid-template-columns:1.25fr 1fr 1fr;
+  gap:1.5rem 2.5rem;
+  padding:.25rem 0 2rem 4.7rem;
+}
+.panel h4{font-family:var(--display);font-weight:600;font-size:1rem;margin:0 0 .5rem}
+.panel p{margin:0 0 .6rem;font-size:1rem}
+.panel .fine{font-size:.88rem;color:var(--muted)}
+.checks{list-style:none;margin:0;padding:0;font-size:.95rem}
+.checks li{display:flex;flex-direction:column;padding:.35rem 0;border-top:1px solid var(--line)}
+.checks li:first-child{border-top:0}
+.checks .st{font-family:var(--display);font-size:.8rem;color:var(--muted)}
+.checks .st.on{color:var(--credential-text);font-weight:600}
+.watch{border-left:3px solid var(--caution);padding-left:.8rem}
+.watch h4{color:var(--caution)}
+
+.empty{padding:2.5rem 0 1rem;max-width:40rem}
+.empty h3{font-family:var(--display);font-weight:600;font-size:1.6rem;letter-spacing:-0.02em;margin:0 0 .6rem}
+.notify{display:flex;flex-wrap:wrap;gap:.6rem;margin:1.25rem 0 .5rem}
+.notify input{
+  flex:1 1 15rem;
+  font-size:1rem;
+  padding:.8rem 1rem;
+  border:1px solid var(--muted);
+  border-radius:10px;
+  background:transparent;
+  color:var(--ink);
+}
+.notify .go{font-size:1rem;padding:.8rem 1.3rem}
+.msg{min-height:1.5rem;margin:.25rem 0 0;font-size:.95rem}
+.msg.err{color:var(--caution)}
+.linkish{background:none;border:0;padding:0;font-size:1rem;color:var(--ink);text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+
+/* Location signal */
+.stars{
+  --v:0;
+  display:inline-block;
+  font-size:.95rem;
+  line-height:1;
+  letter-spacing:0;
+  background:linear-gradient(90deg,var(--palm) calc(var(--v) / 5 * 100%),var(--off) calc(var(--v) / 5 * 100%));
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+  -webkit-text-fill-color:transparent;
+}
+.loc{display:flex;align-items:center;gap:.45rem;margin:.2rem 0 0;font-family:var(--display);font-size:.85rem;color:var(--muted)}
+.loc b{font-weight:600;color:var(--palm-text)}
+.chip-s{font-weight:600;color:var(--palm-text)}
+.chip[aria-pressed="true"] .chip-s{color:#fff}
+.rule{grid-column:1/-1;border:0;border-top:1px solid var(--line);margin:.25rem 0 0;width:100%}
+.loc-big{display:flex;align-items:center;gap:.55rem;margin:0 0 .5rem;font-family:var(--display);font-size:1.1rem}
+.loc-big .stars{font-size:1.3rem}
+.place-scores{grid-column:2/4;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem 1.5rem;align-content:start}
+.place-scores .fine{margin:.4rem 0 0}
+.sig-head .l{color:var(--palm-text)}
+.bar.g i{background:var(--palm)}
+
+/* How we rank */
+.how{background:var(--paper-2);padding:clamp(3rem,7vw,5.5rem) 0}
+.how-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:2.5rem clamp(2rem,6vw,5rem);align-items:start}
+.how h2{font-family:var(--display);font-weight:600;font-size:clamp(1.9rem,4.2vw,3.1rem);line-height:1.08;letter-spacing:-0.03em;margin:0}
+.how-lead{margin:1.25rem 0 0;color:var(--muted);max-width:30rem}
+.reasons{display:grid;gap:1.75rem}
+.reason{border-left:5px solid var(--teal);padding-left:1.1rem}
+.reason.s{border-color:var(--sentiment)}
+.reason.c{border-color:var(--credential)}
+.reason.l{border-color:var(--palm)}
+.reason h3{font-family:var(--display);font-weight:600;font-size:1.2rem;margin:0 0 .3rem}
+.reason p{margin:0}
+.before{margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid var(--line);max-width:44rem}
+.before p{margin:0}
+
+/* Footer */
+.band-foot{background:var(--teal-deep);color:#D5ECF0}
+.foot{padding:2.5rem 0 3rem;font-size:.92rem}
+.foot p{margin:0 0 .5rem;max-width:46rem}
+
+@media (max-width:900px){
+  .nav a:not(:first-child){display:none}
+  .row{
+    grid-template-columns:2.4rem minmax(0,1fr) auto 2.6rem;
+    grid-template-areas:"rank main score tog" ". signals signals signals" "panel panel panel panel";
+    column-gap:1rem;
+  }
+  .main,.rank,.score,.tog{padding-bottom:1rem;margin-bottom:0}
+  .signals{padding-bottom:1.5rem}
+  .panel-grid{grid-template-columns:1fr;padding-left:0}
+  .place-scores{grid-column:auto;grid-template-columns:1fr}
+  .how-grid{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{transition:none !important;animation:none !important;scroll-behavior:auto !important}
+}
+
+/* ===== Links between the two pages ===== */
+.name-link{color:inherit;text-decoration:none}
+.name-link:hover{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
+.more{font-family:var(--display);font-weight:600}
+a.go{display:inline-block;text-decoration:none;text-align:center}
+.ghost{
+  font-weight:600;
+  font-size:1rem;
+  padding:.8rem 1.4rem;
+  border-radius:10px;
+  border:1.5px solid var(--ink);
+  background:transparent;
+  color:var(--ink);
+  cursor:pointer;
+}
+.ghost[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#fff}
+
+/* ===== Clinic detail page ===== */
+.crumbs ol{display:flex;flex-wrap:wrap;gap:.25rem .6rem;list-style:none;margin:0;padding:0;font-family:var(--display);font-size:.9rem}
+.crumbs li+li::before{content:"/";margin-right:.6rem;opacity:.6}
+.crumbs a{color:rgba(255,255,255,.88)}
+.crumbs [aria-current]{color:#fff;font-weight:600}
+
+.d-hero{padding:clamp(.5rem,2vw,1rem) 0 clamp(2.25rem,6vw,4rem)}
+.d-hero-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,19rem);gap:1.5rem 3rem;align-items:end;margin-top:clamp(1.5rem,4vw,2.5rem)}
+.d-name{font-family:var(--display);font-weight:600;font-size:clamp(2.2rem,5.6vw,4.75rem);line-height:1.04;letter-spacing:-0.03em;margin:0}
+.d-place{font-family:var(--display);font-size:1.2rem;font-weight:600;margin:1rem 0 0}
+.d-tags{margin:.2rem 0 0;color:#E3F4F6}
+.d-score{font-family:var(--display)}
+.d-score strong{display:block;font-weight:700;font-size:clamp(3.75rem,8vw,6rem);line-height:.95;letter-spacing:-0.04em}
+.d-score span{display:block}
+.d-score .conf-line{font-weight:600;margin-top:.35rem}
+.d-score .rk{font-size:.88rem;margin-top:.5rem;color:#E3F4F6}
+
+.d-body{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 21rem;
+  gap:2.5rem clamp(2rem,5vw,4.5rem);
+  padding:clamp(2rem,5vw,3.25rem) 0 clamp(3rem,6vw,5rem);
+  align-items:start;
+}
+.d-main .sample{margin:0 0 .5rem}
+.d-main section{padding:2rem 0;border-top:1px solid var(--line)}
+.d-main .sample + section{border-top:0}
+.d-main h2{font-family:var(--display);font-weight:600;font-size:clamp(1.4rem,2.6vw,1.9rem);letter-spacing:-0.02em;line-height:1.15;margin:0 0 1rem}
+.d-main h3{font-family:var(--display);font-weight:600;font-size:1.05rem;margin:0 0 .6rem}
+.d-main p{margin:0 0 .75rem}
+.d-main .fine{font-size:.88rem;color:var(--muted)}
+.d-lead{font-size:1.28rem;line-height:1.5}
+.d-two{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem 2.5rem;margin-top:1.5rem}
+.watch h3{color:var(--caution)}
+.plain{list-style:none;margin:0;padding:0}
+.plain li{position:relative;padding:.5rem 0 .5rem 1.15rem;border-top:1px solid var(--line)}
+.plain li:first-child{border-top:0}
+.plain li::before{content:"";position:absolute;left:0;top:1.05em;width:.45rem;height:.45rem;border-radius:50%;background:var(--teal)}
+
+/* Rating scale */
+.big-rate{display:flex;align-items:baseline;gap:.75rem;flex-wrap:wrap}
+.big-rate strong{font-family:var(--display);font-weight:700;font-size:3.25rem;line-height:1;letter-spacing:-0.035em;color:var(--sentiment-text)}
+.big-rate span{color:var(--muted)}
+.scale{position:relative;height:2.5rem;margin:1.25rem 10px .25rem}
+.scale .track{position:absolute;left:0;right:0;top:50%;height:6px;border-radius:3px;background:var(--line);transform:translateY(-50%)}
+.scale .seg{position:absolute;top:50%;height:6px;background:var(--sentiment);opacity:.4;transform:translateY(-50%)}
+.scale .tick{position:absolute;top:50%;width:2px;height:24px;background:var(--muted);transform:translate(-50%,-50%)}
+.scale .pt{position:absolute;top:50%;width:18px;height:18px;border-radius:50%;transform:translate(-50%,-50%)}
+.scale .pt.raw{border:2px solid var(--sentiment);background:var(--paper);width:24px;height:24px}
+.scale .pt.adj{background:var(--sentiment)}
+.scale-axis{display:flex;justify-content:space-between;margin:0 10px 1rem;font-family:var(--display);font-size:.8rem;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:.4rem 1.5rem;list-style:none;margin:0 0 1rem;padding:0;font-family:var(--display);font-size:.88rem}
+.legend li{display:flex;align-items:center;gap:.5rem}
+.key{display:inline-block;flex:none}
+.key.raw{width:14px;height:14px;border-radius:50%;border:2px solid var(--sentiment)}
+.key.adj{width:12px;height:12px;border-radius:50%;background:var(--sentiment)}
+.key.tick{width:2px;height:14px;background:var(--muted)}
+
+/* Credentials */
+.cred-head{display:flex;align-items:center;gap:.6rem;font-family:var(--display);font-size:1.1rem;color:var(--credential-text)}
+.cred-head .stamp{width:36px;height:36px}
+.cred{list-style:none;margin:0 0 .75rem;padding:0}
+.cred li{display:grid;grid-template-columns:1.6rem minmax(0,1fr);gap:.9rem;padding:1rem 0;border-top:1px solid var(--line)}
+.cred b{font-family:var(--display);font-weight:600}
+.cred .st{display:block;font-family:var(--display);font-size:.85rem;color:var(--muted)}
+.cred li.on .st{color:var(--credential-text);font-weight:600}
+.cred p{margin:.25rem 0 0;font-size:.97rem}
+.ck{position:relative;width:1.5rem;height:1.5rem;border-radius:50%;border:2px dashed var(--off);margin-top:.1rem}
+.ck.on{border:0;background:var(--credential)}
+.ck.on::after{content:"";position:absolute;left:50%;top:48%;width:.4rem;height:.7rem;border-right:2.5px solid var(--paper);border-bottom:2.5px solid var(--paper);transform:translate(-50%,-55%) rotate(45deg)}
+
+/* The place */
+.d-main .loc-big{margin:0 0 .75rem}
+.d-main .loc-big b{color:var(--palm-text)}
+.d-scores{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem 1.5rem;margin:1.25rem 0}
+.d-scores .fine{margin:.4rem 0 0}
+.facts{margin:0 0 .75rem}
+.facts div{display:flex;justify-content:space-between;gap:1rem;padding:.65rem 0;border-top:1px solid var(--line)}
+.facts dt{color:var(--muted)}
+.facts dd{margin:0;font-family:var(--display);font-weight:600}
+
+/* Questions */
+.ask{list-style:none;margin:0;padding:0}
+.ask li{display:grid;grid-template-columns:1.6rem minmax(0,1fr);gap:.8rem;padding:.8rem 0;border-top:1px solid var(--line)}
+.box{width:1.15rem;height:1.15rem;margin-top:.3rem;border:2px solid var(--ink);border-radius:4px}
+.ask small{display:block;font-family:var(--display);font-size:.82rem;color:var(--muted)}
+
+/* More clinics */
+.minis{border-bottom:1px solid var(--line)}
+.mini{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.2rem 1rem;align-items:center;padding:1rem 0;border-top:1px solid var(--line);text-decoration:none}
+.mini-name{display:block;font-family:var(--display);font-weight:600;font-size:1.15rem}
+.mini-place{display:block;color:var(--muted);font-size:.95rem}
+.mini:hover .mini-name{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
+.mini-score{text-align:right}
+.mini-score strong{display:block;font-family:var(--display);font-weight:700;font-size:1.8rem;line-height:1;letter-spacing:-0.03em}
+.mini-score small{font-family:var(--display);font-size:.75rem;color:var(--muted)}
+
+/* Sticky summary rail */
+.rail{position:sticky;top:1.5rem;border-left:1px solid var(--line);padding-left:clamp(1.5rem,3vw,2.25rem)}
+.rail .go,.rail .ghost{display:block;width:100%}
+.rail .ghost{margin-top:.6rem}
+.rail .msg{min-height:1.4rem;margin:.5rem 0 0;font-size:.88rem;color:var(--muted)}
+.rail-signals{margin:1.25rem 0 1.5rem}
+.rail .fine{font-size:.85rem;color:var(--muted);margin:0 0 .5rem}
+
+.d-missing{padding:clamp(3rem,8vw,6rem) 0}
+.d-missing h1{font-family:var(--display);font-weight:600;font-size:clamp(2rem,5vw,3.5rem);letter-spacing:-0.03em;margin:0 0 1rem}
+
+@media (max-width:900px){
+  .d-hero-grid{grid-template-columns:1fr}
+  .d-body{grid-template-columns:1fr}
+  .rail{position:static;order:-1;border-left:0;padding-left:0;border-bottom:1px solid var(--line);padding-bottom:1.5rem}
+  .d-two,.d-scores{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="wrap top">
+    <a class="brand" href="index.html">Medtravel</a>
+    <nav class="nav" aria-label="Main">
+      <a href="index.html#how">How we rank</a>
+      <a href="#">Destinations</a>
+      <a href="#">Safety guide</a>
+    </nav>
+  </div>
+</header>
+
+<main id="app"></main>
+
+<footer class="band-foot"><div class="wrap foot">
+  <p>Clinics can’t pay to change their ranking.</p>
+  <p>Medtravel shares information, not medical advice. Talk with your own dentist or doctor before you travel for care. Traveler ratings come from Google Maps.</p>
+</div></footer>
+
+<script>
+/* Sample data and helpers shared by index.html and clinic.html.
+   Everything here is made up for the mockup. When the backend is ready,
+   replace the data below with API calls and keep the helpers. */
+
+const SAMPLE_TREATMENT = "Dental care";
+const SAMPLE_COUNTRY = "Mexico";
+const FETCHED = "Nov 2, 2026";          // when ratings were last pulled
+const CRED_DATE = "Oct 28, 2026";       // when credentials were last checked
+const ADVISORY_SAMPLE = "Level 2 (sample)";
+
+/* The five credential checks: what each one means and the question to ask
+   a clinic when we could not verify it yet. */
+const CHECK_INFO = [
+  {label:"Registered dentist identified",
+   what:"The dentist who will treat you is named, and their professional registration (cédula profesional) matches.",
+   ask:"Who exactly will treat me, and what is their registration number?"},
+  {label:"Facility accreditation (ISO or JCI)",
+   what:"The facility holds a recognized quality certification such as ISO or JCI.",
+   ask:"Does the facility hold ISO or JCI certification? Can you send the certificate?"},
+  {label:"Professional association member",
+   what:"The treating dentists belong to a recognized dental association.",
+   ask:"Which dental associations are the treating dentists members of?"},
+  {label:"Implant and material brands documented",
+   what:"The brands of implants and materials are published, so you can look them up yourself.",
+   ask:"Which brand and model of implant and materials will you use? Please put it in writing."},
+  {label:"Written treatment warranty",
+   what:"Warranty terms are provided in writing.",
+   ask:"What does your warranty cover, for how long, and how do I claim it from home?"}
+];
+const CHECKS = CHECK_INFO.map(k => k.label);
+
+/* Questions worth asking any clinic, verified or not. */
+const GENERAL_ASKS = [
+  "What is the total cost, in writing, including any follow-up visits?",
+  "What happens if I need care after I'm back home?"
+];
+
+/* Ratings: clinics with few reviews are pulled toward the average clinic.
+   adjusted = (v / (v + m)) * rating + (m / (v + m)) * mean */
+const GLOBAL_MEAN = 4.4;
+const PRIOR_REVIEWS = 60;
+const adjust = (rating, reviews) =>
+  Math.round(((reviews / (reviews + PRIOR_REVIEWS)) * rating +
+              (PRIOR_REVIEWS / (reviews + PRIOR_REVIEWS)) * GLOBAL_MEAN) * 10) / 10;
+
+const CLINICS = [
+  {id:"molar-row", name:"Molar Row Dental", city:"Los Algodones", tags:"Implants, crowns, All-on-4",
+   score:91, rating:4.8, reviews:1240, checks:[1,1,1,1,0], conf:"High",
+   read:"Consistently high ratings across more than a thousand reviews, and most credentials check out. Travelers often mention clear written quotes.",
+   strengths:["More than a thousand reviews with steady, high ratings","Four of five credential checks verified","English spoken almost everywhere nearby"],
+   watch:"Warranty terms aren’t verified yet. Ask for them in writing before paying a deposit."},
+  {id:"andrade-gate", name:"Andrade Gate Implant Center", city:"Los Algodones", tags:"Implants, bone grafts",
+   score:86, rating:4.9, reviews:212, checks:[1,1,0,1,0], conf:"Medium",
+   read:"Excellent ratings from a smaller group of travelers, and the operating dentist is named and registered. There is less history to judge than for the top result.",
+   strengths:["The operating dentist is named and registered","Implant and material brands are documented","Steps from the pedestrian border crossing"],
+   watch:"Most reviews were posted in the last six months."},
+  {id:"plaza-dorada", name:"Plaza Dorada Dentistas", city:"Tijuana", tags:"Veneers, crowns, general dentistry",
+   score:84, rating:4.6, reviews:2030, checks:[1,1,1,1,0], conf:"High",
+   read:"A large, steady base of reviews and strong credential coverage. Ratings run a little lower than the top two, mostly over waiting times.",
+   strengths:["Large, steady base of reviews","Four of five credential checks verified","Many hotels and easy hospital access nearby"],
+   watch:"Several reviews mention long waits on busy weekends."},
+  {id:"sol-sierra", name:"Sol y Sierra Dental", city:"Cancún", tags:"Implants, orthodontics",
+   score:78, rating:4.7, reviews:640, checks:[1,0,1,0,0], conf:"Medium",
+   read:"Good ratings from a healthy number of reviews. We could confirm the dentist’s registration and professional membership, but not the facility accreditation.",
+   strengths:["Good ratings from a healthy number of reviews","Dentist registration and association membership verified","Easy to pair with a longer stay: many hotels and an airport nearby"],
+   watch:"Only two of five checks verified so far."},
+  {id:"yuma-crossing", name:"Yuma Crossing Dental", city:"Los Algodones", tags:"Dentures, crowns, root canals",
+   score:74, rating:4.5, reviews:3410, checks:[1,0,0,0,0], conf:"Medium",
+   read:"The most reviewed clinic in this sample, with solid but not standout ratings. Only the dentist’s registration is verified so far.",
+   strengths:["The most reviewed clinic in the sample","Dentist registration verified","Solid ratings held across a very large number of reviews"],
+   watch:"High volume with few verified credentials. Ask who will be treating you."},
+  {id:"costa-azul", name:"Costa Azul Smile Studio", city:"Playa del Carmen", tags:"Whitening, veneers",
+   score:52, rating:5.0, reviews:9, checks:[0,0,0,0,0], conf:"Low",
+   read:"A perfect rating, but from only nine reviews, so we pull it toward the average. No credentials are verified yet, which is why it sits lower.",
+   strengths:["Well placed for a longer stay, with plenty of hotels and restaurants","Every one of its nine reviews is five stars"],
+   watch:"Too few reviews to trust the rating, and no credentials verified yet."}
+].map(c => ({...c, adj: adjust(c.rating, c.reviews)}));
+
+/* Where the clinic is: neighborhood scores out of 5 for US visitors. */
+const PLACE = {
+  "molar-row":     {hood:"Zona Centro",      stay:3.0, english:4.8, resources:3.4, note:"Compact and walkable, with English spoken almost everywhere. Hotels are limited, so many travelers sleep on the US side and cross each day."},
+  "andrade-gate":  {hood:"Border gate area", stay:3.2, english:4.9, resources:3.6, note:"Steps from the pedestrian crossing, which keeps day trips simple. Services are close, but lodging options are limited."},
+  "plaza-dorada":  {hood:"Zona Río",         stay:4.5, english:4.0, resources:4.6, note:"A business district with many hotels, a large mall and easy hospital access. English is common in clinics and hotels, less so on the street."},
+  "sol-sierra":    {hood:"Hotel Zone",       stay:4.9, english:4.6, resources:4.4, note:"Built for visitors: plenty of places to stay, English widely spoken and an international airport nearby. Lodging costs more than elsewhere."},
+  "yuma-crossing": {hood:"East side",        stay:2.8, english:4.4, resources:3.0, note:"Quieter streets away from the main strip. Fewer hotels and services within walking distance, so plan your transport."},
+  "costa-azul":    {hood:"Centro",           stay:4.7, english:4.2, resources:4.1, note:"A walkable center with plenty of hotels and restaurants. English is common in tourist areas and less so a few blocks away."}
+};
+const CITY = {"Los Algodones":3.7, "Tijuana":4.4, "Cancún":4.6, "Playa del Carmen":4.3};
+const locScore = id => {
+  const p = PLACE[id];
+  return Math.round((p.stay + p.english + p.resources) / 3 * 10) / 10;
+};
+
+const BY_SCORE = [...CLINICS].sort((a,b) => b.score - a.score);
+const RANK = Object.fromEntries(BY_SCORE.map((c,i) => [c.id, i + 1]));
+
+/* The "verified" stamp used next to the credentials meter. */
+const STAMP = '<svg class="stamp" viewBox="0 0 48 48" width="24" height="24" aria-hidden="true"><circle cx="24" cy="24" r="21" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 2.2"/><circle cx="24" cy="24" r="16" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M16.5 24.5l5 5 10-11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+</script>
+<script>
+const app = document.getElementById("app");
+const wanted = new URLSearchParams(location.search).get("id");
+// No id in the address (or opened as a standalone preview): show the top-ranked clinic.
+const clinic = wanted ? CLINICS.find(c => c.id === wanted) : BY_SCORE[0];
+
+// Position on the 3.0 to 5.0 rating scale, as a percentage.
+const pos = v => Math.max(0, Math.min(100, (v - 3) / 2 * 100));
+
+function renderClinic(c){
+  const p = PLACE[c.id];
+  const ls = locScore(c.id);
+  const n = c.checks.reduce((a,b) => a + b, 0);
+  const adjusted = c.adj !== c.rating;
+  const reviewsText = c.reviews.toLocaleString("en-US");
+  const pips = c.checks.map(v => `<i class="${v ? "on" : ""}"></i>`).join("");
+
+  document.title = `${c.name}: ${SAMPLE_TREATMENT.toLowerCase()} in ${SAMPLE_COUNTRY} | Medtravel`;
+
+  // Questions: the ones for checks we could not verify come first.
+  const asks = [];
+  c.checks.forEach((v, i) => {
+    if (!v) asks.push({q: CHECK_INFO[i].ask, why: "We couldn’t verify this yet."});
+  });
+  GENERAL_ASKS.forEach(q => asks.push({q, why: ""}));
+
+  const others = BY_SCORE.filter(x => x.id !== c.id).slice(0, 3);
+  const segLeft = Math.min(pos(c.rating), pos(c.adj));
+  const segWidth = Math.abs(pos(c.rating) - pos(c.adj));
+
+  app.innerHTML = `
+  <section class="band" aria-labelledby="clinic-name">
+    <div class="wrap d-hero">
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <ol>
+          <li><a href="index.html#results">${SAMPLE_TREATMENT} in ${SAMPLE_COUNTRY}</a></li>
+          <li>${c.city}</li>
+          <li aria-current="page">${c.name}</li>
+        </ol>
+      </nav>
+      <div class="d-hero-grid">
+        <div>
+          <h1 class="d-name" id="clinic-name">${c.name}</h1>
+          <p class="d-place">${p.hood}, ${c.city}</p>
+          <p class="d-tags">${c.tags}</p>
+        </div>
+        <div class="d-score">
+          <strong>${c.score}</strong>
+          <span>Medtravel score</span>
+          <span class="conf-line">${c.conf} confidence</span>
+          <span class="rk">Ranked #${RANK[c.id]} of ${CLINICS.length} in this sample. Based on ${reviewsText} reviews and ${n} of 5 verified checks.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap d-body">
+    <div class="d-main">
+      <p class="sample"><strong>Mockup with sample data.</strong> This clinic and everything about it is made up to show how the page works.</p>
+
+      <section aria-labelledby="h-read">
+        <h2 id="h-read">Medtravel’s read</h2>
+        <p class="d-lead">${c.read}</p>
+        <p class="fine">Written by AI from the data on this page. Sample text.</p>
+        <div class="d-two">
+          <div>
+            <h3>What stands out</h3>
+            <ul class="plain">${c.strengths.map(s => `<li>${s}</li>`).join("")}</ul>
+          </div>
+          <div class="watch">
+            <h3>Watch for</h3>
+            <p>${c.watch}</p>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="h-trav">
+        <h2 id="h-trav">What travelers say</h2>
+        <p class="big-rate"><strong>${c.rating.toFixed(1)}</strong><span>from ${reviewsText} reviews on Google Maps</span></p>
+        <div class="scale" role="img" aria-label="Raw rating ${c.rating.toFixed(1)}, adjusted rating ${c.adj.toFixed(1)}, average clinic ${GLOBAL_MEAN.toFixed(1)}, on a scale from 3 to 5">
+          <div class="track"></div>
+          ${adjusted ? `<div class="seg" style="left:${segLeft}%;width:${segWidth}%"></div>` : ""}
+          <div class="tick" style="left:${pos(GLOBAL_MEAN)}%"></div>
+          <div class="pt raw" style="left:${pos(c.rating)}%"></div>
+          <div class="pt adj" style="left:${pos(c.adj)}%"></div>
+        </div>
+        <div class="scale-axis" aria-hidden="true"><span>3.0</span><span>5.0</span></div>
+        <ul class="legend">
+          <li><i class="key raw"></i>Raw rating ${c.rating.toFixed(1)}</li>
+          <li><i class="key adj"></i>Adjusted ${c.adj.toFixed(1)}</li>
+          <li><i class="key tick"></i>Average clinic ${GLOBAL_MEAN.toFixed(1)}</li>
+        </ul>
+        <p>Clinics with few reviews are pulled toward the average, and the pull shrinks as reviews grow. ${adjusted
+          ? `Here, ${c.rating.toFixed(1)} becomes ${c.adj.toFixed(1)} because of the number of reviews.`
+          : "At this review volume, no adjustment is needed."}</p>
+      </section>
+
+      <section aria-labelledby="h-cred">
+        <h2 id="h-cred">Verified credentials</h2>
+        <p class="cred-head"><b>${n} of 5 checks verified</b>${n >= 4 ? STAMP : ""}</p>
+        <ul class="cred">
+          ${CHECK_INFO.map((k, i) => `
+          <li class="${c.checks[i] ? "on" : ""}">
+            <span class="ck ${c.checks[i] ? "on" : ""}" aria-hidden="true"></span>
+            <div>
+              <b>${k.label}</b>
+              <span class="st">${c.checks[i] ? `Verified. Checked ${CRED_DATE}.` : "Not verified yet. See the questions below."}</span>
+              <p>${k.what}</p>
+            </div>
+          </li>`).join("")}
+        </ul>
+        <p class="fine">“Not verified yet” means we haven’t confirmed it, not that it failed.</p>
+      </section>
+
+      <section aria-labelledby="h-place">
+        <h2 id="h-place">The place: ${p.hood}, ${c.city}</h2>
+        <p class="loc-big"><span class="stars" style="--v:${ls}" role="img" aria-label="${ls.toFixed(1)} out of 5 for US visitors">★★★★★</span><b>${ls.toFixed(1)}/5</b> easy for US visitors</p>
+        <p>${p.note}</p>
+        <div class="d-scores">
+          ${[["Stay","Hotels and rentals nearby, as rated by travelers",p.stay],
+             ["English","How widely English is spoken in clinics, hotels and shops",p.english],
+             ["Resources","Pharmacies, ATMs, hospitals, rides and border access",p.resources]]
+            .map(([l, d, v]) => `
+          <div>
+            <div class="sig-head"><span>${l}</span><b class="l">${v.toFixed(1)}/5</b></div>
+            <div class="bar g"><i data-w="${(v / 5 * 100).toFixed(1)}"></i></div>
+            <p class="fine">${d}</p>
+          </div>`).join("")}
+        </div>
+        <dl class="facts">
+          <div><dt>${c.city} overall</dt><dd>${CITY[c.city].toFixed(1)}/5</dd></div>
+          <div><dt>US State Department advisory</dt><dd>${ADVISORY_SAMPLE}</dd></div>
+        </dl>
+        <p class="fine">The neighborhood score averages Stay, English and Resources. Sample scores.</p>
+      </section>
+
+      <section aria-labelledby="h-ask">
+        <h2 id="h-ask">Questions to ask this clinic</h2>
+        <p>Ask for the answers in writing before you pay a deposit or book travel.</p>
+        <ul class="ask">
+          ${asks.map(a => `
+          <li><span class="box" aria-hidden="true"></span><div>${a.q}${a.why ? `<small>${a.why}</small>` : ""}</div></li>`).join("")}
+        </ul>
+      </section>
+
+      <section aria-labelledby="h-more">
+        <h2 id="h-more">More ${SAMPLE_TREATMENT.toLowerCase()} clinics in ${SAMPLE_COUNTRY}</h2>
+        <div class="minis">
+          ${others.map(o => `
+          <a class="mini" href="clinic.html?id=${o.id}">
+            <span><span class="mini-name">${o.name}</span><span class="mini-place">${PLACE[o.id].hood}, ${o.city}</span></span>
+            <span class="mini-score"><strong>${o.score}</strong><small>Medtravel score</small></span>
+          </a>`).join("")}
+        </div>
+      </section>
+    </div>
+
+    <aside class="rail" aria-label="Summary">
+      <a class="go" href="#">Visit clinic website</a>
+      <button class="ghost" id="save" type="button" aria-pressed="false">Save clinic</button>
+      <p class="msg" id="saveMsg" role="status"></p>
+
+      <div class="rail-signals">
+        <div class="sig">
+          <div class="sig-head"><span>Travelers</span><b class="t">${c.rating.toFixed(1)} from ${reviewsText} reviews</b></div>
+          <div class="bar"><i data-w="${(c.adj / 5 * 100).toFixed(1)}"></i></div>
+        </div>
+        <div class="sig">
+          <div class="sig-head"><span>Verified credentials</span><b class="c">${n} of 5 checks${n >= 4 ? STAMP : ""}</b></div>
+          <div class="pips" role="img" aria-label="${n} of 5 credential checks verified">${pips}</div>
+        </div>
+        <div class="sig">
+          <div class="sig-head"><span>Easy for US visitors</span><b class="l">${ls.toFixed(1)}/5</b></div>
+          <div class="bar g"><i data-w="${(ls / 5 * 100).toFixed(1)}"></i></div>
+        </div>
+      </div>
+
+      <p class="fine">Ratings from Google Maps, checked ${FETCHED}. Credentials checked ${CRED_DATE}.</p>
+      <p class="fine"><a href="#">Report a problem with this listing</a></p>
+    </aside>
+  </div>`;
+
+  // One reveal: the meters fill in once the page is on screen.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    app.querySelectorAll(".bar i[data-w]").forEach(el => { el.style.width = el.dataset.w + "%"; });
+  }));
+
+  const save = document.getElementById("save");
+  const msg = document.getElementById("saveMsg");
+  save.addEventListener("click", () => {
+    const on = save.getAttribute("aria-pressed") !== "true";
+    save.setAttribute("aria-pressed", String(on));
+    save.textContent = on ? "Saved" : "Save clinic";
+    msg.textContent = on ? "Saved for this visit only. This is a mockup." : "";
+  });
+}
+
+if (clinic) {
+  renderClinic(clinic);
+} else {
+  document.title = "Clinic not found | Medtravel";
+  app.innerHTML = `
+  <section class="wrap d-missing" aria-labelledby="missing-title">
+    <h1 id="missing-title">We couldn’t find that clinic</h1>
+    <p>The link may be old, or the clinic may have been removed.</p>
+    <a class="go" href="index.html#results">See all clinics</a>
+  </section>`;
+}
+</script>
+</body>
+</html>

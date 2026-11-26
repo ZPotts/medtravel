@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Medtravel: find the best clinics abroad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="band">
+  <div class="wrap top">
+    <a class="brand" href="#">Medtravel</a>
+    <nav class="nav" aria-label="Main">
+      <a href="#how">How we rank</a>
+      <a href="#">Destinations</a>
+      <a href="#">Safety guide</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="band" aria-labelledby="hero-title">
+    <div class="wrap hero">
+    <h1 id="hero-title" class="sr-only">Find the best clinics for care abroad</h1>
+    <div class="sentence" role="group" aria-label="Search for clinics">
+      <span class="line">I’m looking for
+        <span class="field"><span class="field-label" id="treatmentLabel" aria-hidden="true">Dental care</span><select id="treatment" aria-label="Treatment"></select></span>
+      </span>
+      <span class="line">in
+        <span class="field"><span class="field-label" id="countryLabel" aria-hidden="true">Mexico</span><select id="country" aria-label="Country"></select></span>.
+      </span>
+    </div>
+    <div class="hero-actions">
+      <button class="go" id="go" type="button">Show best clinics</button>
+      <p class="hero-note">Independent rankings that keep traveler ratings and verified credentials apart, so you can see why a clinic is on top. We’re starting with dental care in Mexico.</p>
+    </div>
+    </div>
+  </section>
+
+  <section class="results" id="results" aria-labelledby="results-title">
+    <div class="wrap">
+      <div class="results-head">
+        <div>
+          <h2 id="results-title" tabindex="-1"></h2>
+          <p class="sub" id="sub"></p>
+        </div>
+        <label class="sort" id="sortWrap">Sort by
+          <select id="sort">
+            <option value="overall">Medtravel score</option>
+            <option value="credentials">Most verified credentials</option>
+            <option value="reviews">Most reviews</option>
+            <option value="visitors">Easiest for US visitors</option>
+          </select>
+        </label>
+      </div>
+      <p class="sample" id="sample"><strong>Mockup with sample data.</strong> Clinic names, ratings and checks below are made up to show how the page works.</p>
+      <div class="chips" id="chips" role="group" aria-label="Filter by city"></div>
+      <div id="out"></div>
+    </div>
+  </section>
+
+  <section class="how" id="how" aria-labelledby="how-title">
+    <div class="wrap">
+      <div class="how-grid">
+        <div>
+          <h2 id="how-title">A 4.9 rating doesn’t tell you the surgery was good.</h2>
+          <p class="how-lead">Friendly staff and a nice waiting room earn stars. Skilled, safe treatment is harder to see. So we show what travelers say and what we can verify as two separate things.</p>
+        </div>
+        <div class="reasons">
+          <div class="reason s">
+            <h3>What travelers say</h3>
+            <p>Ratings and review counts from public sources. A perfect score from nine people is pulled toward the average, so it can’t beat a 4.7 from a thousand.</p>
+          </div>
+          <div class="reason c">
+            <h3>What we can verify</h3>
+            <p>Five checks: a named, registered dentist, facility accreditation, professional membership, documented materials, and a written warranty. “Not verified yet” means we haven’t confirmed it, not that it failed.</p>
+          </div>
+          <div class="reason l">
+            <h3>How easy it is to be there</h3>
+            <p>Every city and neighborhood gets a score out of 5 for where you’ll stay, how much English is spoken, and nearby resources like pharmacies and hospitals. We show the US State Department travel advisory next to every city.</p>
+          </div>
+        </div>
+      </div>
+      <div class="before">
+        <p><strong style="font-family:var(--display)">Before you book anything.</strong> The CDC has guidance for people who travel abroad for care, including the risks and what to ask a clinic. <a href="https://www.cdc.gov/yellow-book/hcp/health-care-abroad/medical-tourism.html" rel="noopener">Read the CDC guidance on medical tourism</a>.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="band-foot"><div class="wrap foot">
+  <p>Clinics can’t pay to change their ranking.</p>
+  <p>Medtravel shares information, not medical advice. Talk with your own dentist or doctor before you travel for care. Traveler ratings come from Google Maps.</p>
+</div></footer>
+
+<script src="shared.js"></script>
+<script>
+const TREATMENTS = ["Dental care","Hair restoration","Weight-loss surgery","Cosmetic surgery","Eye surgery"];
+const COUNTRIES  = ["Mexico","Turkey","Costa Rica","Colombia","Thailand"];
+const CITIES = ["All cities", ...Array.from(new Set(CLINICS.map(c=>c.city)))];
+
+const $ = id => document.getElementById(id);
+const tSel=$("treatment"), cSel=$("country");
+const state = {treatment:"Dental care", country:"Mexico", city:"All cities", sort:"overall", open:null};
+
+TREATMENTS.forEach(t=>tSel.add(new Option(t,t)));
+COUNTRIES.forEach(c=>cSel.add(new Option(c,c)));
+
+const tLabel = $("treatmentLabel"), cLabel = $("countryLabel");
+function syncLabels(){
+  tLabel.textContent = tSel.options[tSel.selectedIndex].text;
+  cLabel.textContent = cSel.options[cSel.selectedIndex].text;
+}
+tSel.addEventListener("change", syncLabels);
+cSel.addEventListener("change", syncLabels);
+syncLabels();
+
+
+function rowHTML(c, animate){
+  const n = c.checks.reduce((a,b)=>a+b,0);
+  const pl = PLACE[c.id], ls = locScore(c.id);
+  const w = (c.adj/5*100).toFixed(1);
+  const pips = c.checks.map(v=>`<i class="${v?"on":""}"></i>`).join("");
+  const adjLine = c.adj === c.rating
+    ? `Travelers rate it ${c.rating.toFixed(1)}. No adjustment needed at this review volume.`
+    : `Travelers rate it ${c.rating.toFixed(1)}. We adjust that to ${c.adj.toFixed(1)} because of the number of reviews.`;
+  const checks = CHECKS.map((label,i)=>`<li>${label}<span class="st ${c.checks[i]?"on":""}">${c.checks[i]?"Verified":"Not verified yet"}</span></li>`).join("");
+  return `
+  <li class="row" data-id="${c.id}">
+    <div class="rank" aria-label="Overall rank ${RANK[c.id]}">#${RANK[c.id]}</div>
+    <div class="main">
+      <h3><a class="name-link" href="clinic.html?id=${c.id}">${c.name}</a></h3>
+      <p class="tags">${c.tags}</p>
+      <p class="city">${pl.hood}, ${c.city}</p>
+      <p class="loc"><span class="stars" style="--v:${ls}" role="img" aria-label="${ls.toFixed(1)} out of 5 for US visitors">★★★★★</span><b>${ls.toFixed(1)}/5</b> easy for US visitors</p>
+    </div>
+    <div class="signals">
+      <div class="sig">
+        <div class="sig-head"><span>Travelers</span><b class="t">${c.rating.toFixed(1)} from ${c.reviews.toLocaleString("en-US")} reviews</b></div>
+        <div class="bar" role="img" aria-label="Adjusted traveler rating ${c.adj.toFixed(1)} out of 5"><i data-w="${w}" style="${animate?"":`width:${w}%`}"></i></div>
+      </div>
+      <div class="sig">
+        <div class="sig-head"><span>Verified credentials</span><b class="c">${n} of 5 checks${n>=4?STAMP:""}</b></div>
+        <div class="pips" role="img" aria-label="${n} of 5 credential checks verified">${pips}</div>
+      </div>
+    </div>
+    <div class="score">
+      <strong>${c.score}</strong>
+      <span class="lbl">Medtravel score</span>
+      <span class="conf ${c.conf}">${c.conf} confidence</span>
+    </div>
+    <button class="tog" type="button" aria-expanded="false" aria-controls="p-${c.id}" aria-label="Show details for ${c.name}"></button>
+    <div class="panel" id="p-${c.id}" data-open="false">
+      <div class="panel-in">
+        <div class="panel-grid">
+          <div>
+            <h4>Medtravel’s read</h4>
+            <p>${c.read}</p>
+            <p class="fine">Written by AI from the data shown here. Sample text.</p>
+            <p><a class="more" href="clinic.html?id=${c.id}">See full profile</a></p>
+          </div>
+          <div>
+            <h4>Why it ranks here</h4>
+            <p>${adjLine}</p>
+            <ul class="checks">${checks}</ul>
+          </div>
+          <div class="watch">
+            <h4>Watch for</h4>
+            <p>${c.watch}</p>
+            <p class="fine">Ratings from Google Maps, checked ${FETCHED}.</p>
+          </div>
+          <hr class="rule">
+          <div>
+            <h4>The place: ${pl.hood}, ${c.city}</h4>
+            <p class="loc-big"><span class="stars" style="--v:${ls}" role="img" aria-label="${ls.toFixed(1)} out of 5 for US visitors">★★★★★</span><b>${ls.toFixed(1)}/5</b></p>
+            <p>${pl.note}</p>
+            <p class="fine">${c.city} overall: ${CITY[c.city].toFixed(1)}/5. The neighborhood score averages Stay, English and Resources. Sample scores.</p>
+          </div>
+          <div class="place-scores">
+            ${[["Stay","Hotels and rentals nearby, as rated by travelers",pl.stay],["English","How widely English is spoken in clinics, hotels and shops",pl.english],["Resources","Pharmacies, ATMs, hospitals, rides and border access",pl.resources]].map(([l,d,v])=>`<div><div class="sig-head"><span>${l}</span><b class="l">${v.toFixed(1)}/5</b></div><div class="bar g"><i style="width:${(v/5*100).toFixed(0)}%"></i></div><p class="fine">${d}</p></div>`).join("")}
+          </div>
+        </div>
+      </div>
+    </div>
+  </li>`;
+}
+
+function sorted(list){
+  const l = [...list];
+  if (state.sort==="credentials") return l.sort((a,b)=>b.checks.reduce((x,y)=>x+y,0)-a.checks.reduce((x,y)=>x+y,0) || b.score-a.score);
+  if (state.sort==="visitors") return l.sort((a,b)=>locScore(b.id)-locScore(a.id) || b.score-a.score);
+  if (state.sort==="reviews") return l.sort((a,b)=>b.reviews-a.reviews);
+  return l.sort((a,b)=>b.score-a.score);
+}
+const SORT_LABEL = {overall:"Medtravel score", credentials:"verified credentials", reviews:"number of reviews", visitors:"ease for US visitors"};
+
+function render(animate){
+  const has = state.treatment==="Dental care" && state.country==="Mexico";
+  $("results-title").textContent = `${state.treatment} in ${state.country}`;
+  $("sortWrap").style.display = has ? "" : "none";
+  $("sample").style.display = has ? "" : "none";
+  $("chips").style.display = has ? "" : "none";
+  const out = $("out");
+
+  if (!has){
+    $("sub").textContent = "";
+    const t = state.treatment.toLowerCase();
+    out.innerHTML = `
+      <div class="empty">
+        <h3>No ${t} clinics in ${state.country} yet</h3>
+        <p>We’re launching with dental care in Mexico and adding one treatment and country at a time, so every ranking has real data behind it.</p>
+        <div class="notify">
+          <input id="email" type="email" placeholder="you@example.com" aria-label="Email address">
+          <button class="go" id="notify" type="button">Tell me when it opens</button>
+        </div>
+        <p class="msg" id="msg" role="status"></p>
+        <button class="linkish" id="reset" type="button">See dental care in Mexico</button>
+      </div>`;
+    return;
+  }
+
+  const filtered = CLINICS.filter(c => state.city==="All cities" || c.city===state.city);
+  const list = sorted(filtered);
+  $("sub").textContent = `Showing ${list.length} sample ${list.length===1?"clinic":"clinics"}, sorted by ${SORT_LABEL[state.sort]}.`;
+
+  $("chips").innerHTML = CITIES.map(c=>`<button class="chip" type="button" aria-pressed="${c===state.city}" data-city="${c}"${c!=="All cities"?` title="Ease for US visitors, out of 5"`:""}>${c}${c!=="All cities"?` <span class="chip-s">★ ${CITY[c].toFixed(1)}</span>`:""}</button>`).join("");
+  out.innerHTML = `<ol class="clinics">${list.map(c=>rowHTML(c, animate)).join("")}</ol>`;
+
+  if (animate){
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      out.querySelectorAll(".bar i").forEach(el=>{ el.style.width = el.dataset.w + "%"; });
+    }));
+  }
+}
+
+/* Events */
+$("go").addEventListener("click",()=>{
+  state.treatment = tSel.value;
+  state.country = cSel.value;
+  state.city = "All cities";
+  state.open = null;
+  render(true);
+  const h = $("results-title");
+  $("results").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"start"});
+  h.focus({preventScroll:true});
+});
+
+$("sort").addEventListener("change",e=>{ state.sort = e.target.value; render(false); });
+
+$("chips").addEventListener("click",e=>{
+  const b = e.target.closest("[data-city]");
+  if (!b) return;
+  state.city = b.dataset.city;
+  render(false);
+});
+
+$("out").addEventListener("click",e=>{
+  const tog = e.target.closest(".tog");
+  if (tog){
+    const panel = document.getElementById(tog.getAttribute("aria-controls"));
+    const open = panel.dataset.open !== "true";
+    document.querySelectorAll(".panel").forEach(p=>{
+      p.dataset.open = "false";
+      const t = document.querySelector(`[aria-controls="${p.id}"]`);
+      if (t) t.setAttribute("aria-expanded","false");
+    });
+    panel.dataset.open = String(open);
+    tog.setAttribute("aria-expanded", String(open));
+    return;
+  }
+  if (e.target.id==="reset"){
+    state.treatment="Dental care"; state.country="Mexico"; state.city="All cities";
+    tSel.value="Dental care"; cSel.value="Mexico"; syncLabels();
+    render(true);
+    return;
+  }
+  if (e.target.id==="notify"){
+    const v = $("email").value.trim();
+    const msg = $("msg");
+    if (/^\S+@\S+\.\S+$/.test(v)){
+      msg.className = "msg";
+      msg.textContent = "Thanks. This is a mockup, so nothing was sent.";
+    } else {
+      msg.className = "msg err";
+      msg.textContent = "Enter a valid email address so we know where to write.";
+    }
+  }
+});
+
+render(true);
+</script>
+</body>
+</html>

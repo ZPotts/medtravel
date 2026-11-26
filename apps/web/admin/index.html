@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Research prompt builder · Medtravel admin</title>
+<link rel="stylesheet" href="../styles.css">
+<style>
+  main{padding:2rem 0 4rem}
+  h1{font-family:var(--display);margin:0 0 .25rem}
+  .lede{color:var(--muted);margin:0 0 1.5rem}
+  form{display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;margin-bottom:1.5rem}
+  label{display:flex;flex-direction:column;gap:.25rem;font-family:var(--display);font-weight:600;font-size:.9rem}
+  input{font-size:1rem;padding:.6rem .75rem;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink);min-width:14rem}
+  button{font-size:1rem;font-weight:600;padding:.65rem 1.1rem;border:0;border-radius:6px;background:var(--coral);color:var(--on-coral,#0D2B33);cursor:pointer}
+  button:hover{background:var(--coral-hover)}
+  textarea{width:100%;min-height:26rem;font:.85rem/1.5 ui-monospace,Menlo,monospace;padding:1rem;border:1px solid var(--line);border-radius:6px;background:var(--paper-2);color:var(--ink)}
+  .row{display:flex;gap:1rem;align-items:center;margin:.75rem 0}
+  .status{color:var(--palm-text);font-family:var(--display)}
+  ol{color:var(--muted)}
+  .results{margin-top:2.5rem}
+  .results textarea{min-height:10rem}
+  .err{color:var(--caution);font-family:var(--display)}
+  .tablewrap{overflow:auto;max-height:70vh;border:1px solid var(--line);border-radius:6px;margin-top:1rem}
+  table{border-collapse:collapse;font:.85rem/1.4 var(--display);width:100%}
+  th,td{padding:.45rem .7rem;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;white-space:nowrap}
+  td.wrapcell{white-space:normal;min-width:16rem}
+  th{position:sticky;top:0;background:var(--paper-2);cursor:pointer}
+  .na{color:var(--muted)}
+  .conf-HIGH{color:var(--palm-text)} .conf-LOW{color:var(--caution)}
+  .mode{border:1px solid var(--line);border-radius:6px;padding:.4rem .75rem;display:flex;gap:1rem}
+  .mode legend{font-family:var(--display);font-weight:600;font-size:.9rem;padding:0 .25rem}
+  label.opt{flex-direction:row;align-items:center;gap:.4rem;font-weight:400}
+  label.opt input{min-width:0}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>Research prompt builder</h1>
+  <p class="lede">Enter a city and a service. Copy the prompt into any web-browsing AI agent (Claude, ChatGPT, Gemini, Perplexity…) and it returns structured clinic data as JSON.</p>
+
+  <form id="form">
+    <label>City
+      <input id="city" required placeholder="Tijuana" autocomplete="off">
+    </label>
+    <label>Service
+      <select id="service" required>
+        <option value="">Choose a service…</option>
+        <option value="dental">Dental</option>
+        <option value="cosmetic">Cosmetic</option>
+        <option value="orthopedic">Orthopedic</option>
+        <option value="bariatric">Bariatric</option>
+        <option value="cardiac">Cardiac</option>
+        <option value="fertility">Fertility</option>
+        <option value="other">Other</option>
+      </select>
+    </label>
+    <fieldset class="mode">
+      <legend>Mode</legend>
+      <label class="opt"><input type="radio" name="mode" value="test" checked> Test (3 clinics)</label>
+      <label class="opt"><input type="radio" name="mode" value="live"> Live (25 clinics)</label>
+    </fieldset>
+    <button type="submit">Generate prompt</button>
+  </form>
+
+  <div id="out" hidden>
+    <div class="row">
+      <button id="copy" type="button">Copy prompt</button>
+      <span class="status" id="status" role="status"></span>
+    </div>
+    <textarea id="prompt" readonly aria-label="Generated prompt"></textarea>
+    <ol>
+      <li>Paste into an AI agent that can browse the web.</li>
+      <li>Copy the JSON array it returns.</li>
+      <li>Save it as <code>research_results/&lt;city&gt;_&lt;service&gt;_&lt;date&gt;.json</code>.</li>
+    </ol>
+  </div>
+
+  <section class="results">
+    <h2>Check results</h2>
+    <p class="lede">Paste the JSON the agent returned to view it as a table. Click a column header to sort.</p>
+    <textarea id="json" aria-label="Pasted JSON results" placeholder='[ { "clinic_name": "…" } ]'></textarea>
+    <div class="row">
+      <button id="show" type="button">Show table</button>
+      <button id="csv" type="button" hidden>Download CSV</button>
+      <span id="parse-status" role="status"></span>
+    </div>
+    <div class="tablewrap" id="tablewrap" hidden><table id="table"></table></div>
+  </section>
+</main>
+
+<script>
+const COUNTS = {test: 3, live: 25};
+
+const TEMPLATE = `You are a medical travel researcher with web browsing access. Your job is to research and extract data about clinics offering {{SERVICE}} in {{CITY}}.
+
+Research approximately {{COUNT}} clinics that offer {{SERVICE}} in {{CITY}}. Browse the live web; do not answer from memory.
+
+For EACH clinic, extract the following data in JSON format:
+
+{
+  "clinic_name": "Name as the clinic writes it, in its own language",
+  "english_name": "English name if different from clinic_name, else null",
+  "country": "Country name",
+  "country_code": "MX" (ISO 3166-1 alpha-2, exactly 2 uppercase letters),
+  "city": "City name",
+  "address": "Av. Revolución 123, Zona Centro, Tijuana" (street address as published by the clinic or Google Maps, or null),
+  "website": "https://... or null if not found",
+  "email": "clinic@example.com or null",
+  "phone": "+country-code or null",
+  "lead_doctor_name": "Doctor's full name or null",
+  "doctor_certifications": "Comma-separated certifications (e.g., 'DDS, Prosthodontist, Harvard Dental School') or null",
+  "clinic_certifications": ["JCI", "ISO", "AACD", "ASPS"] (only actual certifications found, empty array if none),
+  "languages_spoken": ["English", "Spanish"] (languages where staff can communicate, minimum 2 chars),
+  "specialties": ["Dental", "Cosmetic"] (medical specialties offered),
+  "years_in_business": 15 (number only, null if unknown),
+  "review_sources": {
+    "google": {
+      "rating": 4.8,
+      "review_count": 245,
+      "url": "https://maps.google.com/..."
+    },
+    "tripadvisor": {
+      "rating": 4.7,
+      "review_count": 189,
+      "url": "https://www.tripadvisor.com/..."
+    },
+    "realself": {
+      "rating": 4.6,
+      "review_count": 127,
+      "url": "https://www.realself.com/..."
+    }
+  },
+  "computed_review_score": 4.7 (number 1-5, weighted average from sources),
+  "total_review_count": 561 (sum of all reviews across sources),
+  "typical_procedure_cost": "$1200-$3500" (range in USD or null),
+  "patient_satisfaction_percent": 92 (0-100 or null),
+  "common_feedback_themes": ["Professional staff", "Clean facility", "Good results", "English-speaking"],
+  "data_sources": [
+    "https://www.clinic-website.com",
+    "https://maps.google.com/...",
+    "https://www.tripadvisor.com/..."
+  ],
+  "research_confidence": "HIGH" (HIGH, MEDIUM, LOW based on data availability),
+  "notes": "Any red flags, special observations, or additional context"
+}
+
+IMPORTANT RULES:
+1. Return ONLY a valid JSON array. No preamble, no markdown, no explanations.
+2. Each clinic must be a separate object in the array.
+3. For fields with no data, use null (not empty string, not "N/A").
+4. For arrays, use empty array [] if no data (not null).
+5. Numbers should be numbers, not strings.
+6. URLs must start with http:// or https://
+7. Be conservative with review scores - only include sources you can verify.
+8. years_in_business: number only, null if uncertain.
+9. computed_review_score: round to 1 decimal (e.g., 4.7), calculate as weighted average.
+10. For specialties, use only: Dental, Cosmetic, Orthopedic, Bariatric, Cardiac, Fertility, Other.
+11. Never invent a clinic, URL, rating or credential. If you find fewer than {{COUNT}} real clinics, return fewer.
+
+RESEARCH METHODOLOGY:
+1. Search for: "{{CITY}} {{SERVICE}}", "{{CITY}} {{SERVICE}} clinic", "{{CITY}} medical tourism {{SERVICE}}"
+2. Prioritize clinics with: websites, multiple reviews, visible credentials
+3. Extract from: clinic websites, Google Maps, TripAdvisor, RealSelf, medical forums
+4. Verify data before including (don't speculate)
+5. If information is missing, mark as null and set confidence appropriately
+
+Return the JSON array now (no other text):`;
+
+const $ = id => document.getElementById(id);
+
+$("form").addEventListener("submit", e => {
+  e.preventDefault();
+  const city = $("city").value.trim();
+  const service = $("service").value.trim();
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  $("prompt").value = TEMPLATE
+    .replaceAll("{{CITY}}", city)
+    .replaceAll("{{SERVICE}}", service)
+    .replaceAll("{{COUNT}}", COUNTS[mode]);
+  $("out").hidden = false;
+  $("status").textContent = "";
+});
+
+$("copy").addEventListener("click", async () => {
+  const ta = $("prompt");
+  try { await navigator.clipboard.writeText(ta.value); }
+  catch { ta.select(); document.execCommand("copy"); }
+  $("status").textContent = "Copied.";
+});
+
+/* ---------- results table ---------- */
+const rev = (c, k, f) => c.review_sources?.[k]?.[f] ?? null;
+const COLUMNS = [
+  ["Clinic", c => c.clinic_name],
+  ["English name", c => c.english_name],
+  ["City", c => c.city],
+  ["Country", c => c.country_code],
+  ["Address", c => c.address, "wrap"],
+  ["Website", c => c.website, "link"],
+  ["Phone", c => c.phone],
+  ["Email", c => c.email],
+  ["Lead doctor", c => c.lead_doctor_name],
+  ["Doctor certs", c => c.doctor_certifications],
+  ["Clinic certs", c => (c.clinic_certifications || []).join(", ") || null],
+  ["Languages", c => (c.languages_spoken || []).join(", ") || null],
+  ["Specialties", c => (c.specialties || []).join(", ") || null],
+  ["Years", c => c.years_in_business],
+  ["Google ★", c => rev(c, "google", "rating")],
+  ["Google #", c => rev(c, "google", "review_count")],
+  ["TripAdv ★", c => rev(c, "tripadvisor", "rating")],
+  ["TripAdv #", c => rev(c, "tripadvisor", "review_count")],
+  ["RealSelf ★", c => rev(c, "realself", "rating")],
+  ["RealSelf #", c => rev(c, "realself", "review_count")],
+  ["Score", c => c.computed_review_score],
+  ["Total reviews", c => c.total_review_count],
+  ["Cost (USD)", c => c.typical_procedure_cost],
+  ["Satisfaction %", c => c.patient_satisfaction_percent],
+  ["Themes", c => (c.common_feedback_themes || []).join(", ") || null, "wrap"],
+  ["Sources", c => (c.data_sources || []).length || null],
+  ["Confidence", c => c.research_confidence, "conf"],
+  ["Notes", c => c.notes, "wrap"],
+];
+
+let rows = [], sortCol = -1, sortDir = 1;
+
+function parseClinics(text) {
+  // tolerate ```json fences and chatter around the array
+  let t = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
+  const a = t.indexOf("["), b = t.lastIndexOf("]");
+  if (a === -1 || b === -1) throw new Error("No JSON array found.");
+  const data = JSON.parse(t.slice(a, b + 1));
+  if (!Array.isArray(data)) throw new Error("Expected a JSON array.");
+  return data;
+}
+
+function renderTable() {
+  const table = $("table");
+  table.replaceChildren();
+  const head = table.createTHead().insertRow();
+  COLUMNS.forEach(([name], i) => {
+    const th = document.createElement("th");
+    th.textContent = name + (i === sortCol ? (sortDir > 0 ? " ▲" : " ▼") : "");
+    th.onclick = () => { sortDir = sortCol === i ? -sortDir : 1; sortCol = i; sortRows(); renderTable(); };
+    head.appendChild(th);
+  });
+  const body = table.createTBody();
+  rows.forEach(c => {
+    const tr = body.insertRow();
+    COLUMNS.forEach(([, get, kind]) => {
+      const td = tr.insertCell();
+      const v = get(c);
+      if (v === null || v === undefined || v === "") { td.textContent = "—"; td.className = "na"; return; }
+      if (kind === "link" && /^https?:\/\//.test(v)) {
+        const a = document.createElement("a");
+        a.href = v; a.textContent = v.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
+        a.target = "_blank"; a.rel = "noopener noreferrer";
+        td.appendChild(a);
+      } else {
+        td.textContent = v;
+        if (kind === "wrap") td.className = "wrapcell";
+        if (kind === "conf") td.className = "conf-" + v;
+      }
+    });
+  });
+}
+
+function sortRows() {
+  if (sortCol < 0) return;
+  const get = COLUMNS[sortCol][1];
+  rows.sort((x, y) => {
+    const a = get(x), b = get(y);
+    if (a == null) return 1; if (b == null) return -1;   // blanks last
+    return (typeof a === "number" && typeof b === "number" ? a - b : String(a).localeCompare(String(b))) * sortDir;
+  });
+}
+
+$("show").addEventListener("click", () => {
+  const st = $("parse-status");
+  st.className = "";
+  try {
+    rows = parseClinics($("json").value);
+    sortCol = -1;
+    renderTable();
+    $("tablewrap").hidden = false;
+    $("csv").hidden = false;
+    st.textContent = rows.length + " clinics";
+  } catch (e) {
+    st.className = "err";
+    st.textContent = "Couldn't parse: " + e.message;
+    $("tablewrap").hidden = true;
+    $("csv").hidden = true;
+  }
+});
+
+$("csv").addEventListener("click", () => {
+  const esc = v => `"${String(v ?? "").replaceAll('"', '""')}"`;
+  const lines = [COLUMNS.map(([n]) => esc(n)).join(",")]
+    .concat(rows.map(c => COLUMNS.map(([, g]) => esc(g(c))).join(",")));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([lines.join("\n")], {type: "text/csv"}));
+  a.download = "research_results.csv";
+  a.click();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clinic profile | Medtravel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="band">
+  <div class="wrap top">
+    <a class="brand" href="index.html">Medtravel</a>
+    <nav class="nav" aria-label="Main">
+      <a href="index.html#how">How we rank</a>
+      <a href="#">Destinations</a>
+      <a href="#">Safety guide</a>
+    </nav>
+  </div>
+</header>
+
+<main id="app"></main>
+
+<footer class="band-foot"><div class="wrap foot">
+  <p>Clinics can’t pay to change their ranking.</p>
+  <p>Medtravel shares information, not medical advice. Talk with your own dentist or doctor before you travel for care. Traveler ratings come from Google Maps.</p>
+</div></footer>
+
+<script src="shared.js"></script>
+<script>
+const app = document.getElementById("app");
+const wanted = new URLSearchParams(location.search).get("id");
+// No id in the address (or opened as a standalone preview): show the top-ranked clinic.
+const clinic = wanted ? CLINICS.find(c => c.id === wanted) : BY_SCORE[0];
+
+// Position on the 3.0 to 5.0 rating scale, as a percentage.
+const pos = v => Math.max(0, Math.min(100, (v - 3) / 2 * 100));
+
+function renderClinic(c){
+  const p = PLACE[c.id];
+  const ls = locScore(c.id);
+  const n = c.checks.reduce((a,b) => a + b, 0);
+  const adjusted = c.adj !== c.rating;
+  const reviewsText = c.reviews.toLocaleString("en-US");
+  const pips = c.checks.map(v => `<i class="${v ? "on" : ""}"></i>`).join("");
+
+  document.title = `${c.name}: ${SAMPLE_TREATMENT.toLowerCase()} in ${SAMPLE_COUNTRY} | Medtravel`;
+
+  // Questions: the ones for checks we could not verify come first.
+  const asks = [];
+  c.checks.forEach((v, i) => {
+    if (!v) asks.push({q: CHECK_INFO[i].ask, why: "We couldn’t verify this yet."});
+  });
+  GENERAL_ASKS.forEach(q => asks.push({q, why: ""}));
+
+  const others = BY_SCORE.filter(x => x.id !== c.id).slice(0, 3);
+  const segLeft = Math.min(pos(c.rating), pos(c.adj));
+  const segWidth = Math.abs(pos(c.rating) - pos(c.adj));
+
+  app.innerHTML = `
+  <section class="band" aria-labelledby="clinic-name">
+    <div class="wrap d-hero">
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <ol>
+          <li><a href="index.html#results">${SAMPLE_TREATMENT} in ${SAMPLE_COUNTRY}</a></li>
+          <li>${c.city}</li>
+          <li aria-current="page">${c.name}</li>
+        </ol>
+      </nav>
+      <div class="d-hero-grid">
+        <div>
+          <h1 class="d-name" id="clinic-name">${c.name}</h1>
+          <p class="d-place">${p.hood}, ${c.city}</p>
+          <p class="d-tags">${c.tags}</p>
+        </div>
+        <div class="d-score">
+          <strong>${c.score}</strong>
+          <span>Medtravel score</span>
+          <span class="conf-line">${c.conf} confidence</span>
+          <span class="rk">Ranked #${RANK[c.id]} of ${CLINICS.length} in this sample. Based on ${reviewsText} reviews and ${n} of 5 verified checks.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap d-body">
+    <div class="d-main">
+      <p class="sample"><strong>Mockup with sample data.</strong> This clinic and everything about it is made up to show how the page works.</p>
+
+      <section aria-labelledby="h-read">
+        <h2 id="h-read">Medtravel’s read</h2>
+        <p class="d-lead">${c.read}</p>
+        <p class="fine">Written by AI from the data on this page. Sample text.</p>
+        <div class="d-two">
+          <div>
+            <h3>What stands out</h3>
+            <ul class="plain">${c.strengths.map(s => `<li>${s}</li>`).join("")}</ul>
+          </div>
+          <div class="watch">
+            <h3>Watch for</h3>
+            <p>${c.watch}</p>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="h-trav">
+        <h2 id="h-trav">What travelers say</h2>
+        <p class="big-rate"><strong>${c.rating.toFixed(1)}</strong><span>from ${reviewsText} reviews on Google Maps</span></p>
+        <div class="scale" role="img" aria-label="Raw rating ${c.rating.toFixed(1)}, adjusted rating ${c.adj.toFixed(1)}, average clinic ${GLOBAL_MEAN.toFixed(1)}, on a scale from 3 to 5">
+          <div class="track"></div>
+          ${adjusted ? `<div class="seg" style="left:${segLeft}%;width:${segWidth}%"></div>` : ""}
+          <div class="tick" style="left:${pos(GLOBAL_MEAN)}%"></div>
+          <div class="pt raw" style="left:${pos(c.rating)}%"></div>
+          <div class="pt adj" style="left:${pos(c.adj)}%"></div>
+        </div>
+        <div class="scale-axis" aria-hidden="true"><span>3.0</span><span>5.0</span></div>
+        <ul class="legend">
+          <li><i class="key raw"></i>Raw rating ${c.rating.toFixed(1)}</li>
+          <li><i class="key adj"></i>Adjusted ${c.adj.toFixed(1)}</li>
+          <li><i class="key tick"></i>Average clinic ${GLOBAL_MEAN.toFixed(1)}</li>
+        </ul>
+        <p>Clinics with few reviews are pulled toward the average, and the pull shrinks as reviews grow. ${adjusted
+          ? `Here, ${c.rating.toFixed(1)} becomes ${c.adj.toFixed(1)} because of the number of reviews.`
+          : "At this review volume, no adjustment is needed."}</p>
+      </section>
+
+      <section aria-labelledby="h-cred">
+        <h2 id="h-cred">Verified credentials</h2>
+        <p class="cred-head"><b>${n} of 5 checks verified</b>${n >= 4 ? STAMP : ""}</p>
+        <ul class="cred">
+          ${CHECK_INFO.map((k, i) => `
+          <li class="${c.checks[i] ? "on" : ""}">
+            <span class="ck ${c.checks[i] ? "on" : ""}" aria-hidden="true"></span>
+            <div>
+              <b>${k.label}</b>
+              <span class="st">${c.checks[i] ? `Verified. Checked ${CRED_DATE}.` : "Not verified yet. See the questions below."}</span>
+              <p>${k.what}</p>
+            </div>
+          </li>`).join("")}
+        </ul>
+        <p class="fine">“Not verified yet” means we haven’t confirmed it, not that it failed.</p>
+      </section>
+
+      <section aria-labelledby="h-place">
+        <h2 id="h-place">The place: ${p.hood}, ${c.city}</h2>
+        <p class="loc-big"><span class="stars" style="--v:${ls}" role="img" aria-label="${ls.toFixed(1)} out of 5 for US visitors">★★★★★</span><b>${ls.toFixed(1)}/5</b> easy for US visitors</p>
+        <p>${p.note}</p>
+        <div class="d-scores">
+          ${[["Stay","Hotels and rentals nearby, as rated by travelers",p.stay],
+             ["English","How widely English is spoken in clinics, hotels and shops",p.english],
+             ["Resources","Pharmacies, ATMs, hospitals, rides and border access",p.resources]]
+            .map(([l, d, v]) => `
+          <div>
+            <div class="sig-head"><span>${l}</span><b class="l">${v.toFixed(1)}/5</b></div>
+            <div class="bar g"><i data-w="${(v / 5 * 100).toFixed(1)}"></i></div>
+            <p class="fine">${d}</p>
+          </div>`).join("")}
+        </div>
+        <dl class="facts">
+          <div><dt>${c.city} overall</dt><dd>${CITY[c.city].toFixed(1)}/5</dd></div>
+          <div><dt>US State Department advisory</dt><dd>${ADVISORY_SAMPLE}</dd></div>
+        </dl>
+        <p class="fine">The neighborhood score averages Stay, English and Resources. Sample scores.</p>
+      </section>
+
+      <section aria-labelledby="h-ask">
+        <h2 id="h-ask">Questions to ask this clinic</h2>
+        <p>Ask for the answers in writing before you pay a deposit or book travel.</p>
+        <ul class="ask">
+          ${asks.map(a => `
+          <li><span class="box" aria-hidden="true"></span><div>${a.q}${a.why ? `<small>${a.why}</small>` : ""}</div></li>`).join("")}
+        </ul>
+      </section>
+
+      <section aria-labelledby="h-more">
+        <h2 id="h-more">More ${SAMPLE_TREATMENT.toLowerCase()} clinics in ${SAMPLE_COUNTRY}</h2>
+        <div class="minis">
+          ${others.map(o => `
+          <a class="mini" href="clinic.html?id=${o.id}">
+            <span><span class="mini-name">${o.name}</span><span class="mini-place">${PLACE[o.id].hood}, ${o.city}</span></span>
+            <span class="mini-score"><strong>${o.score}</strong><small>Medtravel score</small></span>
+          </a>`).join("")}
+        </div>
+      </section>
+    </div>
+
+    <aside class="rail" aria-label="Summary">
+      <a class="go" href="#">Visit clinic website</a>
+      <button class="ghost" id="save" type="button" aria-pressed="false">Save clinic</button>
+      <p class="msg" id="saveMsg" role="status"></p>
+
+      <div class="rail-signals">
+        <div class="sig">
+          <div class="sig-head"><span>Travelers</span><b class="t">${c.rating.toFixed(1)} from ${reviewsText} reviews</b></div>
+          <div class="bar"><i data-w="${(c.adj / 5 * 100).toFixed(1)}"></i></div>
+        </div>
+        <div class="sig">
+          <div class="sig-head"><span>Verified credentials</span><b class="c">${n} of 5 checks${n >= 4 ? STAMP : ""}</b></div>
+          <div class="pips" role="img" aria-label="${n} of 5 credential checks verified">${pips}</div>
+        </div>
+        <div class="sig">
+          <div class="sig-head"><span>Easy for US visitors</span><b class="l">${ls.toFixed(1)}/5</b></div>
+          <div class="bar g"><i data-w="${(ls / 5 * 100).toFixed(1)}"></i></div>
+        </div>
+      </div>
+
+      <p class="fine">Ratings from Google Maps, checked ${FETCHED}. Credentials checked ${CRED_DATE}.</p>
+      <p class="fine"><a href="#">Report a problem with this listing</a></p>
+    </aside>
+  </div>`;
+
+  // One reveal: the meters fill in once the page is on screen.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    app.querySelectorAll(".bar i[data-w]").forEach(el => { el.style.width = el.dataset.w + "%"; });
+  }));
+
+  const save = document.getElementById("save");
+  const msg = document.getElementById("saveMsg");
+  save.addEventListener("click", () => {
+    const on = save.getAttribute("aria-pressed") !== "true";
+    save.setAttribute("aria-pressed", String(on));
+    save.textContent = on ? "Saved" : "Save clinic";
+    msg.textContent = on ? "Saved for this visit only. This is a mockup." : "";
+  });
+}
+
+if (clinic) {
+  renderClinic(clinic);
+} else {
+  document.title = "Clinic not found | Medtravel";
+  app.innerHTML = `
+  <section class="wrap d-missing" aria-labelledby="missing-title">
+    <h1 id="missing-title">We couldn’t find that clinic</h1>
+    <p>The link may be old, or the clinic may have been removed.</p>
+    <a class="go" href="index.html#results">See all clinics</a>
+  </section>`;
+}
+</script>
+</body>
+</html>
